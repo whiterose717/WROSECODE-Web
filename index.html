@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#090e10" />
+  <meta name="description" content="WROSECODE /CTF — a futuristic challenge-analysis interface with local artifact inspection, evidence-first workflows, and transparent flag verification." />
+  <meta name="color-scheme" content="dark" />
+  <title>WROSECODE / CTF — Find the signal. Prove the flag.</title>
+  <link rel="icon" href="assets/wrosecode-neon-logo.png" type="image/webp" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="site-shell" id="top">
+    <header class="site-header">
+      <a class="logo" href="#top" aria-label="WROSECODE home">
+        <img class="site-neon-logo" src="assets/wrosecode-neon-logo.png" alt="WROSECODE neon rose emblem" />
+        <span class="logo-type"><strong>WROSECODE</strong><small>ADVANCED CTF SYSTEMS</small></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="console.html">Web Console</a><a href="#capabilities">Capabilities</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#download">Download CLI</a>
+        <a href="docs.html">Docs</a><a href="web-setup.html">Web Setup</a>
+        <a href="#lab">Live lab</a>
+        <a href="#benchmarks">Benchmarks</a>
+      </nav>
+      <div class="header-actions">
+        <span class="system-pill"><span class="status-dot"></span> PRIVATE BRIDGE / CONFIGURE TO CONNECT</span>
+        <a class="header-cta" href="login.html">OPEN CONSOLE <span aria-hidden="true">↗</span></a>
+        <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mobileNav" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      </div>
+    </header>
+    <nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation" hidden>
+      <a href="login.html">Web Console</a><a href="#download">Download CLI</a><a href="docs.html">Documentation</a><a href="web-setup.html">Web Setup</a><a href="#capabilities">Capabilities</a><a href="#workflow">Workflow</a><a href="#lab">Live lab</a><a href="#benchmarks">Benchmarks</a>
+    </nav>
+
+    <main>
+      <section class="hero page-pad" aria-labelledby="heroTitle">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-halo" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-line"></span> INTELLIGENCE / ENGINEERING / EVIDENCE <span class="eyebrow-index">[ 01 — 08 ]</span></div>
+          <h1 id="heroTitle">FIND THE <span class="outlined">SIGNAL.</span><br /><span class="neon-type">PROVE</span> THE FLAG<span class="period">.</span></h1>
+          <p class="hero-description">The Rust-native agent meets the browser. Connect your private Kali Linux machine, stream coding tasks, inspect challenges, and work across your configured AI providers.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="login.html"><span class="btn-star" aria-hidden="true">✳</span> OPEN WEB CONSOLE <span class="btn-arrow" aria-hidden="true">↗</span></a>
+            <a class="btn btn-outline" href="docs.html">READ CLI DOCS <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="hero-proof"><div class="avatar-stack" aria-hidden="true"><span>01</span><span>02</span><span>03</span></div><p><strong>LOCAL-FIRST INSPECTION</strong><br />No upload. No invented solve metrics.</p></div>
+        </div>
+        <div class="hero-visual">
+          <div class="orbit-label orbit-label-one">// OPERATIONAL VIEW</div>
+          <div class="orbit-label orbit-label-two">36.166 / EVIDENCE TRACKING</div>
+          <div class="console" aria-label="Illustrative agent console preview">
+            <div class="console-top"><div class="window-dots"><i></i><i></i><i></i></div><span>wrosecode / ctf</span><span class="console-top-right">UI CONCEPT <i>●</i></span></div>
+            <div class="console-content">
+              <div class="console-titlebar"><span class="mini-w">W/</span><div><strong>MISSION CONTROL</strong><small>AGENT EXECUTION INTERFACE</small></div><span class="tag-lime">PREVIEW</span></div>
+              <div class="console-info"><span>SESSION <b>DEMO-001</b></span><span>MODE <b>/CTF</b></span><span>SAFETY <b>SCOPED</b></span></div>
+              <div class="console-divider"></div>
+              <div class="console-activity"><span class="activity-label">ANALYSIS PIPELINE</span><span class="activity-progress">ILLUSTRATIVE VIEW</span></div>
+              <div class="pipeline-demo"><div class="demo-row"><span class="demo-mark done">✓</span><span>Challenge scope check</span><small>READY</small></div><div class="demo-row"><span class="demo-mark done">✓</span><span>Artifact fingerprinting</span><small>LOCAL</small></div><div class="demo-row"><span class="demo-mark pending">◌</span><span>Evidence investigation</span><small>PENDING</small></div><div class="demo-row"><span class="demo-mark pending">◌</span><span>Independent verification</span><small>PENDING</small></div></div>
+              <div class="signal-window"><div class="signal-head"><span>ARTIFACT SIGNAL</span><span class="signal-head-light">●&nbsp; PREVIEW</span></div><div class="signal-chart" aria-hidden="true"><div class="chart-bars"><i style="--h:25%;--d:1"></i><i style="--h:49%;--d:2"></i><i style="--h:34%;--d:3"></i><i style="--h:68%;--d:4"></i><i style="--h:40%;--d:5"></i><i style="--h:93%;--d:6"></i><i style="--h:65%;--d:7"></i><i style="--h:75%;--d:8"></i><i style="--h:47%;--d:9"></i><i style="--h:88%;--d:10"></i><i style="--h:52%;--d:11"></i><i style="--h:37%;--d:12"></i><i style="--h:72%;--d:13"></i><i style="--h:44%;--d:14"></i><i style="--h:59%;--d:15"></i><i style="--h:28%;--d:16"></i><i style="--h:61%;--d:17"></i><i style="--h:33%;--d:18"></i></div></div><div class="signal-foot"><span>DETERMINISTIC</span><span>REPRODUCIBLE</span><span>SCOPED</span></div></div>
+              <div class="console-bottom"><div><span class="small-diamond"></span> VERIFIED ≠ PATTERN MATCH</div><div class="cursor-block"></div></div>
+            </div>
+          </div>
+          <div class="floating-chip chip-left"><span>◇</span> CANDIDATE ≠ SOLVED</div>
+          <div class="floating-chip chip-right"><span class="tiny-orb"></span> EVIDENCE FIRST</div>
+        </div>
+        <div class="hero-bottom"><span>CLI DOWNLOAD / PRIVATE WEB CONSOLE / CTF LAB</span><a href="#download">GET THE CLI <span aria-hidden="true">↓</span></a></div>
+      </section>
+
+      <div class="strip" aria-label="Key capabilities"><div class="strip-inner"><span>WEB EXPLOITATION <b>✳</b></span><span>CRYPTOGRAPHY <b>✳</b></span><span>FORENSICS <b>✳</b></span><span>REVERSE ENGINEERING <b>✳</b></span><span>BINARY / PWN <b>✳</b></span><span>STEGANOGRAPHY <b>✳</b></span><span>OSINT <b>✳</b></span><span>MISCELLANEOUS <b>✳</b></span></div></div>
+
+      <section class="web-console-feature page-pad" id="webconsole" aria-label="Web console"><div class="web-console-copy"><div class="eyebrow"><span class="eyebrow-line"></span> PRIVATE HOST / UNIFIED AGENT</div><h2>YOUR KALI TERMINAL.<br><span>IN YOUR BROWSER.</span></h2><p>One command center for coding tasks, CLI model providers and authorized CTF workflows. Connect locally or through your encrypted Tailscale network, with authenticated, access-controlled execution.</p><div class="web-console-tags"><span>◈ LIVE AGENT STREAMING</span><span>◇ LOGIN + OAUTH</span><span>⚑ CTF OPERATIONS</span><span>⌘ TAILSCALE READY</span></div><a class="btn btn-primary" href="login.html">LAUNCH WEB CONSOLE <span>↗</span></a></div><div class="web-console-graphic"><img src="assets/wrosecode-neon-logo.png" alt="Neon WROSECODE rose emblem"><div class="graphic-corner">PRIVATE / AUTHENTICATED / LOCAL-FIRST</div></div></section>
+      <section class="section capabilities page-pad" id="capabilities" aria-labelledby="capTitle">
+        <div class="section-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> [ 01 ] SYSTEM ARCHITECTURE</div><h2 id="capTitle">MORE SIGNAL.<br /><span class="muted-heading">LESS NOISE.</span></h2></div><p>Every decision should be grounded in real artifacts, not guesswork. Designed as an interface for fast, disciplined investigations.</p></div>
+        <div class="feature-grid">
+          <article class="feature-card feature-wide"><div class="feature-top"><span>01 / INTELLIGENCE</span><span class="feature-icon">✳</span></div><div class="feature-visual scanner-art" aria-hidden="true"><div class="scan-grid"></div><div class="scan-target"><span></span><span></span><span></span></div><span class="scan-caption">CLASSIFY_ / DETECT_ / TRIAGE_</span></div><h3>Smart challenge triage.</h3><p>Use file signatures, names and description signals to prioritize Web, Crypto, Forensics, Reversing and more.</p><div class="feature-bottom">MULTI-CATEGORY HEURISTICS <span>↗</span></div></article>
+          <article class="feature-card"><div class="feature-top"><span>02 / ORCHESTRATION</span><span class="feature-icon">⌘</span></div><div class="node-art" aria-hidden="true"><div class="node node-root">A</div><div class="node-line line-a"></div><div class="node-line line-b"></div><div class="node node-b">01</div><div class="node node-c">02</div><div class="node node-d">03</div></div><h3>Parallel by design.</h3><p>Independent read-only tasks can run concurrently under explicit resource limits.</p><div class="feature-bottom">SAFE TASK SCHEDULING <span>↗</span></div></article>
+          <article class="feature-card"><div class="feature-top"><span>03 / VALIDATION</span><span class="feature-icon">⟐</span></div><div class="verify-art" aria-hidden="true"><div class="verify-radar"><span>?</span></div><div class="verify-lines"><i></i><i></i><i></i></div><div class="verify-caption">UNVERIFIED <span>≠</span> SOLVED</div></div><h3>Evidence over guesses.</h3><p>A matching flag string is a candidate. Only reproducible or authoritative checks earn stronger status.</p><div class="feature-bottom">EXPLICIT VERIFICATION LEVELS <span>↗</span></div></article>
+          <article class="feature-card"><div class="feature-top"><span>04 / EFFICIENCY</span><span class="feature-icon">≋</span></div><div class="feature-code" aria-hidden="true"><span class="code-green">cache.hit</span><span>artifact.sha256</span><span>context.delta</span><span class="code-green">models.skipped</span></div><h3>Lean by default.</h3><p>Cache unchanged artifacts, retain compact evidence, and avoid unnecessary model requests.</p><div class="feature-bottom">VERSIONED LOCAL ANALYSIS <span>↗</span></div></article>
+          <article class="feature-card"><div class="feature-top"><span>05 / RELIABILITY</span><span class="feature-icon">◈</span></div><div class="feature-recovery" aria-hidden="true"><div><i></i><i></i><i></i><i></i><i></i></div><span>CHECKPOINT / RESUME</span></div><h3>Pick up the thread.</h3><p>A resilient agent should preserve evidence and recover without repeating unsafe side effects.</p><div class="feature-bottom">RELIABLE SESSION STATE <span>↗</span></div></article>
+        </div>
+        <p class="section-disclaimer">Architecture targets describe the proposed Rust agent. This website implements safe browser-local inspection only.</p>
+      </section>
+
+      <section class="section workflow-section page-pad" id="workflow" aria-labelledby="workflowTitle">
+        <div class="section-heading workflow-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> [ 02 ] OPERATIONAL LOGIC</div><h2 id="workflowTitle">A BETTER WAY<br /><span class="muted-heading">TO REACH THE TRUTH.</span></h2></div><p>A deliberate sequence: inspect what exists, record what it proves, and never confuse progress with verification.</p></div>
+        <div class="workflow-list">
+          <div class="workflow-item"><span class="workflow-no">01</span><span class="workflow-symbol">⌗</span><div><h3>Authorize</h3><p>Confirm scope and execution permissions.</p></div><span class="workflow-end">SCOPE GATE</span></div>
+          <div class="workflow-item"><span class="workflow-no">02</span><span class="workflow-symbol">▧</span><div><h3>Inspect</h3><p>Index challenge metadata and artifacts.</p></div><span class="workflow-end">DETERMINISTIC</span></div>
+          <div class="workflow-item"><span class="workflow-no">03</span><span class="workflow-symbol">⦿</span><div><h3>Classify</h3><p>Rank likely categories and avenues.</p></div><span class="workflow-end">EVIDENCE-BASED</span></div>
+          <div class="workflow-item"><span class="workflow-no">04</span><span class="workflow-symbol">⌁</span><div><h3>Investigate</h3><p>Test hypotheses using permitted tools.</p></div><span class="workflow-end">BOUNDED</span></div>
+          <div class="workflow-item"><span class="workflow-no">05</span><span class="workflow-symbol">◇</span><div><h3>Verify</h3><p>Validate candidate provenance and proof.</p></div><span class="workflow-end">NO GUESSWORK</span></div>
+        </div>
+      </section>
+
+
+      <section class="section download-section page-pad" id="download" aria-labelledby="downloadTitle">
+        <div class="download-glow" aria-hidden="true"></div>
+        <div class="section-heading download-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> [ 03 ] TERMINAL / DOWNLOAD</div><h2 id="downloadTitle">TAKE THE POWER<br /><span class="muted-heading">TO YOUR TERMINAL.</span></h2></div><p>The native WROSECODE CLI for Linux, macOS and Windows. Install it globally, choose your model, and start in your project directory.</p></div>
+        <div class="install-layout">
+          <div class="install-main">
+            <div class="install-topline"><span><span class="status-dot"></span> QUICKEST INSTALL</span><span>NODE.JS 18+ / NPM</span></div>
+            <h3>One command. Full terminal agent.</h3>
+            <p>Recommended npm command once the package is available on the public registry. Requires an accessible native release binary.</p>
+            <div class="install-copyline"><code id="npmInstallCommand">npm install -g wrosecode</code><button class="copy-code" type="button" data-copy-target="npmInstallCommand" aria-label="Copy npm install command">COPY ⧉</button></div>
+            <div class="install-steps"><span><b>01</b> INSTALL</span><i>→</i><span><b>02</b> CONFIGURE MODEL</span><i>→</i><span><b>03</b> RUN</span></div>
+            <div class="install-verify"><span>VERIFY + LAUNCH</span><code>wrosecode --version</code><code>wrosecode providers add</code><code>wrosecode</code></div>
+            <div class="install-footer-links"><a href="docs.html#installation">READ INSTALL GUIDE ↗</a><a href="docs.html#first-run">FIRST-TIME SETUP ↗</a></div>
+          </div>
+          <div class="native-panel"><div class="native-top"><span>◈</span> NATIVE RELEASE / V1.0.0</div><div class="native-badge">NO NODE.JS REQUIRED FOR NATIVE BINARY</div><h3>Download the<br />binary directly.</h3><p>Pick your operating system and architecture. Check the corresponding SHA-256 file before executing.</p><div class="os-tabs" role="group" aria-label="Choose operating system"><button type="button" data-install-platform="linux" class="active" aria-pressed="true">LINUX</button><button type="button" data-install-platform="mac" aria-pressed="false">MACOS</button><button type="button" data-install-platform="windows" aria-pressed="false">WINDOWS</button></div><pre class="native-snippet"><code id="nativeCommand">curl -fL https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64 -o wrosecode
+chmod +x wrosecode
+./wrosecode --version</code></pre><div class="native-actions"><a id="nativeDownloadLink" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64" target="_blank" rel="noopener noreferrer">DOWNLOAD LINUX X64 ↗</a><button type="button" data-copy-target="nativeCommand" class="copy-code">COPY COMMAND ⧉</button></div><a class="checksum-link" id="nativeChecksumLink" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64.sha256" target="_blank" rel="noopener noreferrer">VIEW SHA-256 CHECKSUM ↗</a></div>
+        </div>
+        <div class="all-downloads"><div class="all-downloads-title"><strong>ALL PLATFORM BUILDS</strong><span>GITHUB RELEASE V1.0.0 · SELECT YOUR ARCHITECTURE</span></div><div class="asset-grid"><a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for Linux x86_64"><span class="asset-os">LINUX</span><strong>x86_64</strong><span class="asset-action">GET BINARY ↗</span></a>
+<a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-aarch64" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for Linux ARM64"><span class="asset-os">LINUX</span><strong>ARM64</strong><span class="asset-action">GET BINARY ↗</span></a>
+<a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-aarch64" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for macOS Apple Silicon"><span class="asset-os">MACOS</span><strong>Apple Silicon</strong><span class="asset-action">GET BINARY ↗</span></a>
+<a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-x86_64" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for macOS Intel"><span class="asset-os">MACOS</span><strong>Intel</strong><span class="asset-action">GET BINARY ↗</span></a>
+<a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-windows-x86_64.exe" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for Windows x86_64"><span class="asset-os">WINDOWS</span><strong>x86_64</strong><span class="asset-action">GET BINARY ↗</span></a>
+<a class="asset-card" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-windows-aarch64.exe" target="_blank" rel="noopener noreferrer" aria-label="Download WROSECODE v1.0.0 for Windows ARM64"><span class="asset-os">WINDOWS</span><strong>ARM64</strong><span class="asset-action">GET BINARY ↗</span></a></div></div>
+        <p class="release-disclaimer"><strong>Distribution note:</strong> GitHub's public release listing shows v1.0.0 binaries, but direct-download accessibility and public npm publication were not independently confirmed. If a download fails, check the <a href="https://github.com/whiterose717/WROSECODE-CLI/releases" target="_blank" rel="noopener noreferrer">GitHub releases page ↗</a>. Use <a href="docs.html#source-build">source installation</a> if you have repository access.</p>
+      </section>
+
+      <section class="lab-section page-pad" id="lab" aria-labelledby="labTitle">
+        <div class="lab-aura" aria-hidden="true"></div>
+        <div class="lab-head"><div class="eyebrow"><span class="eyebrow-line"></span> [ 03 ] INTERACTIVE EXPERIMENT</div><div class="lab-title-row"><h2 id="labTitle">ENTER THE <span>LAB.</span></h2><div class="lab-mode"><span class="status-dot"></span> BROWSER LOCAL MODE <small>NO AGENT BACKEND CONNECTED</small></div></div><p>Inspect challenge descriptions and local files. Get signatures, SHA-256 hashes, category suggestions and evidence-linked flag candidates — without uploading anything.</p></div>
+        <div class="lab-grid">
+          <div class="lab-panel lab-input-panel"><div class="panel-header"><span><span class="panel-square"></span> NEW INVESTIGATION</span><span>INPUT / 01</span></div>
+            <form id="analysisForm" novalidate>
+              <label for="challengeName" class="field-label">CHALLENGE NAME</label><input id="challengeName" maxlength="120" placeholder="e.g. forensic-puzzle-01" autocomplete="off" />
+              <label for="challengeDesc" class="field-label">OBJECTIVE / CHALLENGE DESCRIPTION</label><textarea id="challengeDesc" maxlength="6000" rows="5" placeholder="Describe the authorized challenge, hints and your objective..."></textarea>
+              <div class="sample-label">TRY A SAFE SAMPLE</div><div class="sample-buttons"><button type="button" data-sample="forensics">FORENSICS</button><button type="button" data-sample="crypto">CRYPTO</button><button type="button" data-sample="web">WEB</button></div>
+              <label class="field-label" for="filesInput">ARTIFACTS <span class="field-sub">UP TO 12 FILES / 48 MB TOTAL</span></label>
+              <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Select or drop challenge files"><input type="file" id="filesInput" multiple tabindex="-1" aria-label="Select challenge files" /><div class="drop-icon">⇧</div><strong>DROP YOUR FILES HERE</strong><span>or click to browse · files remain on your device</span></div>
+              <div class="selected-files" id="selectedFiles" aria-live="polite"><span>NO ARTIFACTS SELECTED</span></div>
+              <label class="scope-check"><input type="checkbox" id="scopeCheckbox" /><span>I confirm this analysis concerns a CTF or lab I am authorized to inspect.</span></label>
+              <div class="form-actions"><button type="submit" class="btn btn-primary scan-button" id="analyzeButton"><span aria-hidden="true">✳</span> RUN LOCAL INSPECTION <span aria-hidden="true">↗</span></button><button type="button" id="resetButton" class="btn-reset">RESET ↺</button></div>
+              <div id="formMessage" class="form-message" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+          <div class="lab-panel lab-results-panel"><div class="panel-header"><span><span class="panel-square lime-square"></span> EVIDENCE CONSOLE</span><span id="resultLabel">IDLE / 00</span></div>
+            <div class="result-status" id="resultStatus"><div><span class="result-small">INVESTIGATION STATE</span><strong id="resultStatusText">AWAITING INPUT<span class="blink-cursor">_</span></strong></div><span class="result-status-icon" id="statusIcon">◇</span></div>
+            <div class="result-stats"><div><span>ARTIFACTS</span><strong id="filesCount">00</strong></div><div><span>FINDINGS</span><strong id="findingsCount">00</strong></div><div><span>CANDIDATES</span><strong id="candidatesCount">00</strong></div></div>
+            <div class="result-categories"><div class="result-group-title">CATEGORY SIGNAL <small>HEURISTIC, NOT A SOLVE</small></div><div id="categoryResults" class="category-result-list"><div class="result-empty">Classification will appear after inspection.</div></div></div>
+            <div class="result-evidence"><div class="result-group-title">VERIFIED OBSERVATIONS <small id="evidenceCountLabel">0 ITEMS</small></div><div id="evidenceResults" class="evidence-list"><div class="result-empty">No evidence collected yet.</div></div></div>
+            <div class="result-candidates"><div class="result-group-title">FLAG CANDIDATES <small>NEVER AUTO-VERIFIED</small></div><div id="candidateResults" class="candidate-list"><div class="result-empty">No candidate strings found.</div></div></div>
+            <div class="console-log"><div class="result-group-title">ACTIVITY LOG <small>THIS SESSION</small></div><div class="log-lines" id="logLines" aria-live="polite"><div><span>&gt;</span> Ready for authorized local inspection.</div><div><span>&gt;</span> No data leaves this browser.</div></div></div>
+            <div class="result-footer"><span><i></i> <span id="footerInfo">NO ACTIVE INVESTIGATION</span></span><button type="button" id="exportButton" disabled>EXPORT JSON ↓</button></div>
+          </div>
+        </div>
+        <p class="lab-note"><span>!</span> This demo does not exploit targets, reverse binaries, run AI models, or submit flags. A backend must be connected for the full WROSECODE `/ctf` agent workflow. No string is marked “solved” here.</p>
+      </section>
+
+      <section class="section benchmark-section page-pad" id="benchmarks" aria-labelledby="benchmarkTitle"><div class="benchmark-head"><div><div class="eyebrow"><span class="eyebrow-line"></span> [ 04 ] ENGINEERING HONESTY</div><h2 id="benchmarkTitle">BUILT FOR SPEED.<br /><span class="muted-heading">MEASURED BY EVIDENCE.</span></h2></div><p>Real performance belongs to the Rust agent and its repeatable challenge fixtures, not an animated website preview.</p></div>
+        <div class="benchmark-grid"><div><span>VERIFIED SOLVE RATE</span><strong>N/A</strong><small>REQUIRES AGENT BENCHMARKS</small></div><div><span>MEDIAN TIME TO FLAG</span><strong>N/A</strong><small>REQUIRES REPEATED RUNS</small></div><div><span>MODEL REQUEST SAVINGS</span><strong>N/A</strong><small>REQUIRES BEFORE / AFTER DATA</small></div><div><span>TOOL DISPATCH LATENCY</span><strong>N/A</strong><small>REQUIRES LOCAL PROFILING</small></div></div>
+      </section>
+
+      <section class="last-cta page-pad"><div class="cta-deco" aria-hidden="true">W/</div><div class="eyebrow"><span class="eyebrow-line"></span> THE NEXT STEP</div><h2>LESS GUESSING.<br /><span>MORE PROOF.</span></h2><p>Start with deterministic local inspection. Connect the existing Rust `/ctf` backend to unlock tool execution, AI reasoning, checkpoints and authoritative flag checks.</p><div class="cta-links"><a class="btn btn-primary" href="#download">DOWNLOAD THE CLI <span aria-hidden="true">↓</span></a><a class="btn btn-outline" href="docs.html">BROWSE DOCUMENTATION ↗</a></div></section>
+    </main>
+
+    <footer class="site-footer page-pad"><div class="footer-top"><a class="logo" href="#top"><img class="site-neon-logo" src="assets/wrosecode-neon-logo.png" alt="WROSECODE neon rose emblem" /><span class="logo-type"><strong>WROSECODE</strong><small>CTF / ENGINEERING</small></span></a><div class="footer-links"><a href="#capabilities">CAPABILITIES</a><a href="#workflow">WORKFLOW</a><a href="#download">DOWNLOAD CLI</a><a href="docs.html">DOCS</a><a href="#lab">LAB</a><a href="#benchmarks">METRICS</a></div></div><div class="footer-bottom"><span>© <span id="year">2026</span> WROSECODE. BUILT FOR EVIDENCE.</span><span>PRIVATE LIVE BRIDGE REQUIRES HOST CONFIGURATION</span><a href="#top">BACK TO TOP ↑</a></div></footer>
+  </div>
+  <script src="app.js" defer></script>
+  <script src="docs.js" defer></script>
+</body>
+</html>

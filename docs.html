@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#090e10" /><meta name="description" content="WROSECODE CLI documentation: download and install on Linux, macOS or Windows, configure AI providers, run the CTF agent and automate tasks." />
+<title>Docs — WROSECODE CLI / Installation &amp; Usage</title><link rel="icon" href="assets/wrosecode-neon-logo.png" type="image/webp" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" /><link rel="stylesheet" href="docs.css" /></head><body class="docs-body"><div class="noise" aria-hidden="true"></div><div class="site-shell" id="top">
+<header class="site-header"><a class="logo" href="index.html" aria-label="WROSECODE home"><img class="site-neon-logo" src="assets/wrosecode-neon-logo.png" alt="WROSECODE neon rose logo" /><span class="logo-type"><strong>WROSECODE</strong><small>CLI / DOCUMENTATION</small></span></a>
+<nav class="desktop-nav" aria-label="Main navigation"><a href="index.html">Home</a><a href="login.html">Web Console</a><a href="web-setup.html">Web Setup</a><a href="index.html#download">Download CLI</a><a href="#installation" class="nav-selected">Documentation</a><a href="index.html#lab">Live lab</a></nav>
+<div class="header-actions"><span class="system-pill"><span class="status-dot"></span> CLI GUIDE</span><a class="header-cta" href="index.html#download">GET CLI ↓</a><button type="button" class="menu-toggle" id="docMenuToggle" aria-expanded="false" aria-controls="docMobileNav" aria-label="Toggle menu"><span></span><span></span><span></span></button></div></header>
+<nav class="mobile-nav" id="docMobileNav" aria-label="Mobile navigation" hidden><a href="index.html">Home</a><a href="login.html">Web Console</a><a href="index.html#download">Download CLI</a><a href="login.html">Web Console</a><a href="#overview">Documentation</a><a href="index.html#lab">Live lab</a></nav>
+<main><section class="docs-hero page-pad"><div class="docs-hero-ambient" aria-hidden="true"></div><div class="eyebrow"><span class="eyebrow-line"></span> DEVELOPER REFERENCE / WROSECODE V1.0.0</div><h1>THE MANUAL<br /><span>FOR THE MACHINE.</span></h1><p>From the first install to your first authorized CTF analysis. Every essential command, without the guesswork.</p><div class="docs-hero-actions"><a class="btn btn-primary" href="#installation">START INSTALLING ↓</a><a class="btn btn-outline" href="index.html#download">DOWNLOAD CENTER ↗</a></div><div class="docs-hero-meta"><span>LINUX</span><span>MACOS</span><span>WINDOWS</span><span>RUST-POWERED</span><span>TERMINAL-FIRST</span></div></section>
+<div class="docs-layout page-pad"><aside class="docs-sidebar" aria-label="Documentation sections"><div class="sidebar-title">ON THIS PAGE <span>↘</span></div><a href="#overview">Overview</a><a href="#installation">Installation</a><a href="#native-builds">Native binaries</a><a href="#source-build">Build from source</a><a href="#provider">AI provider setup</a><a href="#first-run">First run</a><a href="#permissions">Permissions & thinking</a><a href="#ctf">CTF agent</a><a href="#ctfd">CTFd integration</a><a href="#commands">Slash commands</a><a href="#keyboard">Keyboard shortcuts</a><a href="#sessions">Sessions & features</a><a href="#skills">Skills & recipes</a><a href="#configuration">Configuration</a><a href="#troubleshooting">Troubleshooting</a><div class="sidebar-bottom"><span>GITHUB RELEASE</span><a href="https://github.com/whiterose717/WROSECODE-CLI/releases" target="_blank" rel="noopener noreferrer">VIEW RELEASES ↗</a></div></aside>
+<div class="docs-content"><section class="doc-section" id="overview"><div class="doc-section-intro"><span>00 / GETTING STARTED</span><h2>Build faster from your terminal.</h2></div>
+<p>WROSECODE is a Rust terminal coding agent with a responsive TUI, tool execution, AI provider integration, saved sessions, headless automation and an authorized CTF workflow. You can install a packaged native binary or build the CLI from source.</p>
+<div class="doc-kpis"><div><strong>RUST</strong><span>NATIVE CLI</span></div><div><strong>3</strong><span>MAJOR OS FAMILIES</span></div><div><strong>/ctf</strong><span>CTF WORKFLOW</span></div></div>
+<div class="doc-action-row"><a class="btn btn-primary" href="#installation">GET STARTED ↘</a><a class="btn btn-outline" href="index.html#lab">TRY WEB LAB ↗</a></div>
+<aside class="doc-callout"><strong>Before you begin</strong><p>The website is a frontend demo; installing WROSECODE gives you the separate terminal agent. Its actual model behavior depends on your installed version and provider setup.</p></aside>
+</section><section class="doc-section" id="installation"><div class="doc-section-intro"><span>01 / INSTALLATION</span><h2>Install WROSECODE CLI.</h2></div>
+<p><strong>Option A — npm:</strong> The easiest global installation method if the <code>wrosecode</code> package is published and its native release assets can be downloaded. Install Node.js 18+ first.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample1" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample1">node --version
+npm --version
+npm install -g wrosecode
+wrosecode --version
+wrosecode --help</code></pre></div>
+<p>Or run once using <code>npx wrosecode</code>. To upgrade or remove the CLI:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample2" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample2">npm install -g wrosecode@latest
+# To uninstall:
+npm uninstall -g wrosecode</code></pre></div>
+<aside class="doc-callout"><strong>Package availability</strong><p>The npm installation command is from the project CLI guide; current public npm package availability was not confirmed. If npm reports 404 or no matching package, use the native assets below or a source build. The CLI package relies on working published native binary assets.</p></aside>
+<p>Use the download selector on the homepage for a platform-specific installation command, or choose a release binary below. Always verify checksum files from the release.</p>
+<div class="doc-action-row"><a class="btn btn-outline" href="index.html#download">OPEN DOWNLOAD CENTER ↗</a><a class="btn btn-outline" href="https://github.com/whiterose717/WROSECODE-CLI/releases" target="_blank" rel="noopener noreferrer">GITHUB RELEASES ↗</a></div>
+</section><section class="doc-section" id="native-builds"><div class="doc-section-intro"><span>02 / PREBUILT RELEASES</span><h2>Native downloads by platform.</h2></div>
+<p>v1.0.0 binaries and matching <code>.sha256</code> assets are listed on GitHub Releases. The direct URLs below use those listed filenames.</p><div class="doc-asset-grid"><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64" target="_blank" rel="noopener noreferrer"><span>LINUX / x86_64</span><strong>wrosecode-linux-x86_64</strong><small>DOWNLOAD BINARY ↗</small></a><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-aarch64" target="_blank" rel="noopener noreferrer"><span>LINUX / ARM64</span><strong>wrosecode-linux-aarch64</strong><small>DOWNLOAD BINARY ↗</small></a><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-aarch64" target="_blank" rel="noopener noreferrer"><span>MACOS / Apple Silicon</span><strong>wrosecode-darwin-aarch64</strong><small>DOWNLOAD BINARY ↗</small></a><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-x86_64" target="_blank" rel="noopener noreferrer"><span>MACOS / Intel</span><strong>wrosecode-darwin-x86_64</strong><small>DOWNLOAD BINARY ↗</small></a><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-windows-x86_64.exe" target="_blank" rel="noopener noreferrer"><span>WINDOWS / x86_64</span><strong>wrosecode-windows-x86_64.exe</strong><small>DOWNLOAD BINARY ↗</small></a><a class="doc-release-link" href="https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-windows-aarch64.exe" target="_blank" rel="noopener noreferrer"><span>WINDOWS / ARM64</span><strong>wrosecode-windows-aarch64.exe</strong><small>DOWNLOAD BINARY ↗</small></a></div>
+<h3>Linux example (x86_64)</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample3" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample3">curl -fL https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64 -o wrosecode-linux-x86_64
+curl -fL https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-linux-x86_64.sha256 -o wrosecode-linux-x86_64.sha256
+sha256sum -c wrosecode-linux-x86_64.sha256
+chmod +x wrosecode-linux-x86_64
+mkdir -p &quot;$HOME/.local/bin&quot;
+install -m 755 wrosecode-linux-x86_64 &quot;$HOME/.local/bin/wrosecode&quot;
+export PATH=&quot;$HOME/.local/bin:$PATH&quot;
+wrosecode --version</code></pre></div>
+<h3>macOS example (Apple Silicon)</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample4" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample4">curl -fL https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-aarch64 -o wrosecode-darwin-aarch64
+curl -fL https://github.com/whiterose717/WROSECODE-CLI/releases/download/v1.0.0/wrosecode-darwin-aarch64.sha256 -o wrosecode-darwin-aarch64.sha256
+shasum -a 256 wrosecode-darwin-aarch64
+# Compare the hash with the official .sha256 file
+chmod +x wrosecode-darwin-aarch64
+./wrosecode-darwin-aarch64 --version</code></pre></div>
+<h3>Windows (PowerShell)</h3>
+<p>Download <code>wrosecode-windows-x86_64.exe</code> (for most Windows PCs), verify the SHA-256 hash, then rename it to <code>wrosecode.exe</code>. The example assumes the file is in Downloads.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / POWERSHELL</span><button type="button" class="copy-code" data-copy-target="codeExample5" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample5">$file = &quot;$HOME\Downloads\wrosecode-windows-x86_64.exe&quot;
+Get-FileHash $file -Algorithm SHA256
+# Compare hash with the official release checksum
+New-Item -ItemType Directory -Force -Path &quot;$HOME\bin&quot; | Out-Null
+Copy-Item $file &quot;$HOME\bin\wrosecode.exe&quot;
+&amp; &quot;$HOME\bin\wrosecode.exe&quot; --version</code></pre></div>
+<aside class="doc-callout"><strong>Windows PATH</strong><p>For command access from any directory, add %USERPROFILE%\bin to your user PATH through Windows Environment Variables. Open a new terminal after changing PATH.</p></aside>
+</section><section class="doc-section" id="source-build"><div class="doc-section-intro"><span>03 / SOURCE</span><h2>Build and install from Rust source.</h2></div>
+<p>For Kali Linux, Debian or Ubuntu, install build prerequisites and Rust, then clone the repository (requires access to the source).</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample6" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample6">sudo apt update
+sudo apt install -y git curl build-essential pkg-config libssl-dev
+# Install Rust via the official rustup script after reviewing it:
+curl --proto &#x27;=https&#x27; --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source &quot;$HOME/.cargo/env&quot;
+git clone https://github.com/whiterose717/WROSECODE-CLI.git
+cd WROSECODE-CLI
+cargo install --path .
+wrosecode --version</code></pre></div>
+<p>Alternatively, use <code>cargo build --release</code> to create <code>target/release/wrosecode</code>. This method does not require npm.</p>
+<aside class="doc-callout"><strong>Repository visibility</strong><p>The GitHub repository root could not be independently fetched at verification time. If cloning returns 404, check whether the repository is public or authenticate as an approved collaborator.</p></aside>
+</section><section class="doc-section" id="provider"><div class="doc-section-intro"><span>04 / MODEL CONFIGURATION</span><h2>Connect your AI provider.</h2></div>
+<p>The terminal agent needs a configured AI model to perform model-driven tasks. Use its provider manager to add a provider, save the key and verify the connection.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample7" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample7">wrosecode providers list
+wrosecode providers add
+wrosecode providers set-key
+wrosecode providers test</code></pre></div>
+<p>For a compatible local endpoint (such as a local OpenAI-compatible server):</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample8" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample8">export WROSECODE_OPENAI_URL=&quot;http://127.0.0.1:11434/v1&quot;
+wrosecode --provider openai-compat --model MODEL_NAME</code></pre></div>
+<aside class="doc-callout"><strong>Credentials</strong><p>Never paste real API keys into public website forms or screenshots. Keep them in private local environment variables or the CLI provider manager. Check provider terms and billing before running automated tasks.</p></aside>
+</section><section class="doc-section" id="first-run"><div class="doc-section-intro"><span>05 / WORKFLOW</span><h2>Your first terminal session.</h2></div>
+<div class="doc-numbered"><div><b>01</b><div><h3>Open your project folder</h3><p>Navigate to an existing code repository or create a new working directory.</p></div></div><div><b>02</b><div><h3>Launch WROSECODE</h3><p>Start the interactive TUI, select a model and the desired permission policy.</p></div></div><div><b>03</b><div><h3>Give the agent a task</h3><p>Ask it to inspect code, run tests, propose a change, or analyze an authorized CTF.</p></div></div></div>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample9" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample9">cd /path/to/your/project
+wrosecode --permission auto-safe --think auto</code></pre></div>
+<p>Inside the terminal, try:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / AGENT PROMPT</span><button type="button" class="copy-code" data-copy-target="codeExample10" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample10">Inspect this project, explain its architecture, and list the failing tests.</code></pre></div>
+<p>For one-shot headless execution:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample11" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample11">wrosecode exec &quot;review this repository&quot;
+wrosecode exec --json &quot;inspect this codebase&quot;</code></pre></div>
+</section><section class="doc-section" id="permissions"><div class="doc-section-intro"><span>06 / AGENT CONTROL</span><h2>Choose permissions &amp; thinking.</h2></div>
+<p>Pick a permission policy based on your trust in the workspace. For ordinary development, <code>auto-safe</code> allows less risky operations automatically and prompts for sensitive actions.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample12" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample12">wrosecode --permission ask
+wrosecode --permission auto-safe
+# CAUTION: skips prompts; disposable VM / trusted repo only
+wrosecode --permission yolo</code></pre></div>
+<h3>Thinking level</h3>
+<p>Choose from <code>off</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>max</code>, and <code>auto</code>. The supported model and provider determine available performance.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample13" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample13">wrosecode --think auto
+wrosecode --think high
+# Inside the TUI use: /think high</code></pre></div>
+<aside class="doc-callout"><strong>Use high-risk modes carefully</strong><p>The yolo permission mode skips approvals but does not make untrusted binaries, scripts, or networks safe. Prefer sandboxing and explicit challenge scope.</p></aside>
+</section><section class="doc-section" id="ctf"><div class="doc-section-intro"><span>06 / CHALLENGE MODE</span><h2>Use the /ctf agent.</h2></div>
+<p>Start CTF investigations in the terminal against <strong>authorized</strong> challenge artifacts or challenge endpoints. The agent can use its configured tools and provider; actual solve performance is not measured by this website.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample14" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample14">wrosecode ctf ./challenge-files/
+wrosecode ctf ./capture.pcapng --category forensics
+wrosecode ctf ./challenge --category crypto
+wrosecode ctf ./binary --category pwn</code></pre></div>
+<p>Configure budgets and independent workers:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample15" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample15">wrosecode ctf ./challenge --budget &quot;steps=50,tokens=100000,seconds=1800&quot; --parallel 4</code></pre></div>
+<p>Inside interactive mode:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / TUI COMMANDS</span><button type="button" class="copy-code" data-copy-target="codeExample16" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample16">/ctf ./challenge-files/
+/writeup</code></pre></div>
+<p>For a remote target, supply only a host and port explicitly authorized in your challenge:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample17" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample17">wrosecode ctf ./binary --category pwn --remote challenge.example:31337</code></pre></div>
+<aside class="doc-callout"><strong>Flags and verification</strong><p>A flag-looking string is not independent proof of a solved challenge. Use the real challenge platform or authorized verifier when available. The website lab never claims it solved a challenge.</p></aside>
+</section><section class="doc-section" id="ctfd"><div class="doc-section-intro"><span>08 / PLATFORM INTEGRATION</span><h2>CTFd commands &amp; submission.</h2></div>
+<p>For competitions using an authorized CTFd instance, use the CLI's CTFd commands to inspect challenges, check the scoreboard and verify or submit flags as permitted.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample18" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample18">wrosecode ctfd list
+wrosecode ctfd scoreboard
+wrosecode ctfd download
+wrosecode ctfd submit
+wrosecode ctfd verify</code></pre></div>
+<p>Configure credentials privately in your local shell:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample19" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample19">export CTFD_URL=&quot;https://ctf.example&quot;
+export CTFD_TOKEN=&quot;your-private-token&quot;</code></pre></div>
+<aside class="doc-callout"><strong>Submission caution</strong><p>Some CTF competitions penalize wrong submissions. Only enable automatic submission after confirming the contest rules and your challenge authorization.</p></aside>
+</section><section class="doc-section" id="commands"><div class="doc-section-intro"><span>07 / INTERACTIVE</span><h2>Essential CLI slash commands.</h2></div>
+<p>Type these <strong>inside</strong> the WROSECODE terminal interface (not as external shell commands). The installed version's <code>/help</code> is authoritative.</p>
+<div class="doc-table-scroll"><table class="doc-table"><thead><tr><th>COMMAND</th><th>PURPOSE</th></tr></thead><tbody><tr><td><code>/help</code></td><td>Show commands and keybindings</td></tr><tr><td><code>/providers</code></td><td>Configure AI connections</td></tr><tr><td><code>/models</code></td><td>Inspect or select models</td></tr><tr><td><code>/think high</code></td><td>Set higher reasoning effort</td></tr><tr><td><code>/plan</code></td><td>Switch to planning mode</td></tr><tr><td><code>/build</code></td><td>Switch to implementation mode</td></tr><tr><td><code>/ctf TARGET</code></td><td>Start a CTF investigation</td></tr><tr><td><code>/sessions</code></td><td>List previous sessions</td></tr><tr><td><code>/resume</code></td><td>Resume a session</td></tr><tr><td><code>/add PATH</code></td><td>Pin a file to context</td></tr><tr><td><code>/diff</code></td><td>Inspect changed files</td></tr><tr><td><code>/review</code></td><td>Review changes</td></tr><tr><td><code>/stats</code></td><td>Usage and performance</td></tr><tr><td><code>/compact</code></td><td>Reduce context size</td></tr><tr><td><code>/skills</code></td><td>Manage installed skills</td></tr><tr><td><code>/writeup</code></td><td>Generate CTF notes/write-up</td></tr></tbody></table></div>
+</section><section class="doc-section" id="keyboard"><div class="doc-section-intro"><span>08 / SHORTCUTS</span><h2>Work at terminal speed.</h2></div><div class="doc-table-scroll"><table class="doc-table"><thead><tr><th>KEY</th><th>ACTION</th></tr></thead><tbody><tr><td><kbd>Ctrl+P</kbd></td><td>Command palette</td></tr><tr><td><kbd>Tab</kbd></td><td>Toggle build/plan when input is empty</td></tr><tr><td><kbd>Ctrl+T</kbd></td><td>Cycle thinking</td></tr><tr><td><kbd>Ctrl+R</kbd></td><td>History picker</td></tr><tr><td><kbd>Ctrl+F</kbd></td><td>Flag picker</td></tr><tr><td><kbd>PageUp / PageDown</kbd></td><td>Scroll transcript</td></tr><tr><td><kbd>Shift+Enter</kbd></td><td>New line in prompt</td></tr><tr><td><kbd>Ctrl+C</kbd></td><td>Cancel running step; twice when idle exits</td></tr><tr><td><kbd>@</kbd></td><td>Mention a file from picker</td></tr></tbody></table></div></section><section class="doc-section" id="sessions"><div class="doc-section-intro"><span>09 / ADVANCED</span><h2>Sessions, automation and more.</h2></div>
+<h3>Resume &amp; fork existing sessions</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample20" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample20">wrosecode --session SESSION_ID
+wrosecode --session SESSION_ID --fork
+wrosecode --session SESSION_ID --export-session session.json</code></pre></div>
+<h3>Automatic test repairs</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample21" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample21">wrosecode --check-command &quot;cargo test&quot; --repair-retries 5 &quot;fix the tests&quot;</code></pre></div>
+<h3>Structured automation &amp; events</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample22" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample22">wrosecode exec --json &quot;analyze the repository&quot;
+wrosecode --events events.ndjson --headless &quot;run the tests&quot;
+wrosecode --trace &quot;investigate slow tests&quot;</code></pre></div>
+<h3>Dashboard and local server</h3>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample23" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample23">wrosecode dashboard
+wrosecode --listen 127.0.0.1:7878</code></pre></div>
+<aside class="doc-callout"><strong>Keep the agent local</strong><p>Do not expose a shell-capable WROSECODE listener to the public internet without strong authentication, authorization, origin controls and isolation. The hosted website contains no agent server.</p></aside>
+</section><section class="doc-section" id="skills"><div class="doc-section-intro"><span>11 / EXTENSIBILITY</span><h2>Skills, agents &amp; recipes.</h2></div>
+<p>Extend WROSECODE with reusable workflows and project-specific skills. Review any installed skill code before granting it permission to run commands.</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample24" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample24">wrosecode recipe list
+wrosecode recipe run NAME
+wrosecode recipe run NAME --set PROJECT=my-app
+wrosecode --install-skill /path/to/skill</code></pre></div>
+<p>Interactive commands and folders:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / TUI COMMANDS</span><button type="button" class="copy-code" data-copy-target="codeExample25" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample25">/skills list
+/skills install SOURCE
+/skills uninstall PACKAGE
+# Project-specific recipes: .wrosecode/recipes/
+# Project-specific agents: .wrosecode/agents/</code></pre></div>
+<p>Run a project agent by name:</p>
+<div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample26" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample26">wrosecode --agent AGENT_NAME</code></pre></div>
+</section><section class="doc-section" id="configuration"><div class="doc-section-intro"><span>12 / STORAGE</span><h2>Where WROSECODE keeps data.</h2></div>
+<p>Useful local configuration and session locations. Keep provider secrets and exported session data out of public Git repositories.</p>
+<div class="doc-table-scroll"><table class="doc-table"><thead><tr><th>LOCATION</th><th>DESCRIPTION</th></tr></thead><tbody>
+<tr><td><code>~/.wrosecode/providers.toml</code></td><td>Provider profiles and credentials</td></tr>
+<tr><td><code>~/.wrosecode/sessions/</code></td><td>Saved sessions</td></tr>
+<tr><td><code>~/.wrosecode/state.db</code></td><td>Persistent application state</td></tr>
+<tr><td><code>~/.wrosecode/skills/</code></td><td>Installed skills</td></tr>
+<tr><td><code>~/.wrosecode/trace.log</code></td><td>Performance traces</td></tr>
+<tr><td><code>.wrosecode/project.toml</code></td><td>Per-project settings</td></tr>
+</tbody></table></div>
+</section><section class="doc-section" id="troubleshooting"><div class="doc-section-intro"><span>10 / SUPPORT</span><h2>Fix common setup problems.</h2></div>
+<div class="faq-item"><h3>"wrosecode: command not found"</h3><p>Verify that installation completed and the global executable folder is in PATH. Open a new terminal after updating your shell environment.</p><div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample27" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample27">npm prefix -g
+export PATH=&quot;$(npm prefix -g)/bin:$PATH&quot;
+wrosecode --version</code></pre></div></div>
+<div class="faq-item"><h3>npm reports 404 or installer cannot fetch a release</h3><p>Confirm the npm package is published and the GitHub release assets are accessible. Install a native binary or compile from source when you have repo access.</p><a href="https://github.com/whiterose717/WROSECODE-CLI/releases" target="_blank" rel="noopener noreferrer">CHECK GITHUB RELEASES ↗</a></div>
+<div class="faq-item"><h3>Model authentication fails</h3><p>Re-enter your provider credential, confirm model access and test it directly.</p><div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample28" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample28">wrosecode providers list
+wrosecode providers set-key
+wrosecode providers test</code></pre></div></div>
+<div class="faq-item"><h3>Need exact commands for your build?</h3><p>Use the help output provided by the installed binary; commands and options may change after v1.0.0.</p><div class="doc-code"><div class="doc-code-head"><span><i>●</i> TERMINAL / BASH</span><button type="button" class="copy-code" data-copy-target="codeExample29" aria-label="Copy code">COPY ⧉</button></div><pre><code id="codeExample29">wrosecode --help
+wrosecode providers --help
+wrosecode ctfd --help</code></pre></div></div>
+<p class="docs-lastnote">Documentation reflects the project CLI command guide supplied for this site. Independent validation of each command against a live install was not performed here.</p>
+</section><div class="docs-end"><strong>READY TO SHIP?</strong><p>Grab the CLI, configure your provider, and put the terminal agent to work.</p><a class="btn btn-primary" href="index.html#download">DOWNLOAD WROSECODE ↗</a></div></div></div></main>
+<footer class="site-footer page-pad"><div class="footer-top"><a class="logo" href="index.html"><img class="site-neon-logo" src="assets/wrosecode-neon-logo.png" alt="WROSECODE neon rose logo" /><span class="logo-type"><strong>WROSECODE</strong><small>CLI / DOCUMENTATION</small></span></a><div class="footer-links"><a href="index.html">HOME</a><a href="index.html#download">DOWNLOAD</a><a href="#overview">DOCS</a><a href="index.html#lab">LAB</a></div></div><div class="footer-bottom"><span>© 2026 WROSECODE. DOCUMENTATION EDITION.</span><span>NO MODEL OR AGENT BACKEND ON THIS WEBSITE</span><a href="#top">BACK TO TOP ↑</a></div></footer></div><script src="docs.js" defer></script></body></html>
