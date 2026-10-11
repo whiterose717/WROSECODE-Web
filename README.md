@@ -2,13 +2,20 @@
 
 This project extends the original WROSECODE static CTF lab and CLI download/docs website with a separate **Node.js 22.13+ backend**, browser chat/CTF workspace, email-password accounts, optional Google/GitHub OAuth, provider selection, live SSE, and Kali Linux / Tailscale access. Your uploaded purple-blue WROSECODE logo is included as transparent PNG.
 
-**Not a modified Rust repo:** this implementation launches your installed WROSECODE binary as a child process. The real Kali environment and Rust repository were **not** accessible for integration testing. The bundled mock binary exercises the command protocol; real compatibility must be validated on your machine. It is **not** safe to offer untrusted visitors general shell execution without genuine VM/container isolation and per-user provider credential separation.
+**Rust bridge:** the Node backend proxies the real local Rust agent API at
+`http://127.0.0.1:4076` (bearer token from `~/.wrosecode/server.token`, never
+sent to browsers). Pair via `wrosecode bridge pair` + the console's
+**Connect CLI** view. Real chat/streaming/models/sessions are verified against
+`vyce/agnes-3.0-flash`. It is **not** safe to offer untrusted visitors general shell execution without genuine VM/container isolation and per-user provider credential separation.
+
+**Docs:** `DEPLOYMENT.md` (Pages + Tunnel/Tailscale architecture), `OAUTH_SETUP.md`
+(exact Google/GitHub redirect URIs), `CLI_PAIRING.md` (pairing workflow).
 
 ## Project files
 
 - `index.html` / `docs.html`: the original WROSECODE landing, browser-local CTF lab, CLI install/download center and documentation (preserved, with new links and logo)
-- `login.html`, `login.js`: accounts and optional social login
-- `console.html`, `console.css`, `console.js`: multi-panel chat/CTF/profiles/jobs/access-control interface
+- `login.html`, `login.js`, `backend.js`: accounts, optional social login, backend-origin config
+- `console.html`, `console.css`, `console.js`: multi-panel chat/CTF/**Connect CLI**/profiles/jobs/access-control interface
 - `web-setup.html`: complete Kali LAN, Tailscale, OAuth setup guide
 - `server/server.mjs`: authenticated API, SQLite sessions, OAuth, uploads, task queue, CLI bridge, SSE
 - `scripts/create-admin.mjs`: initial private owner account

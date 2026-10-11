@@ -8,12 +8,26 @@ import { spawn } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+function resolveHome(){return process.env.HOME || '/root'}
+function defaultTokenPaths(){
+  const custom = process.env.WROSE_TOKEN_FILE;
+  if(custom) return [custom];
+  const h = resolveHome();
+  const list = [path.join(h,'.wrosecode','server.token')];
+  for(const p of ['/root/.wrosecode/server.token','/home/kali/.wrosecode/server.token']){
+    if(!list.includes(p)) list.push(p);
+  }
+  return list;
+}
 const CONFIG = {
   host: process.env.HOST || '127.0.0.1', port: Number(process.env.PORT || '8787'),
   dataDir: path.resolve(process.env.DATA_DIR || path.join(ROOT, 'data')),
   baseUrl: (process.env.PUBLIC_BASE_URL || `http://127.0.0.1:${process.env.PORT || '8787'}`).replace(/\/$/,''),
+  frontendUrl: (process.env.FRONTEND_URL || '').replace(/\/$/,''),
   bridge: process.env.BRIDGE_MODE || 'disabled',
   binary: process.env.WROSECODE_BIN || 'wrosecode',
+  wroseUrl: (process.env.WROSE_URL || 'http://127.0.0.1:4076').replace(/\/$/,''),
+  wroseTokenFile: process.env.WROSE_TOKEN_FILE || '',
   signup: process.env.SIGNUP_MODE || 'closed',
   allowMembers: process.env.ALLOW_MEMBER_JOBS === '1' && process.env.I_ACCEPT_SHARED_CLI_RISK === 'yes',
   maxJobs: Math.min(Math.max(Number(process.env.MAX_CONCURRENT_JOBS || 2),1),6),
@@ -26,6 +40,7 @@ if (!['disabled','mock','cli'].includes(CONFIG.bridge)) throw Error('BRIDGE_MODE
 if (!Number.isInteger(CONFIG.port) || CONFIG.port < 1 || CONFIG.port > 65535) throw Error('Invalid PORT');
 mkdirSync(CONFIG.dataDir,{recursive:true,mode:0o700});
 const db = new DatabaseSync(path.join(CONFIG.dataDir,'wrosecode-web.sqlite'));
+try{import('node:fs').then(m=>{try{m.chmodSync(path.join(CONFIG.dataDir,'wrosecode-web.sqlite'),0o600)}catch{}})}catch{}
 db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,pass_hash TEXT,role TEXT NOT NULL DEFAULT 'member', approved INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS identities(provider TEXT NOT NULL,provider_id TEXT NOT NULL,user_id TEXT NOT NULL,PRIMARY KEY(provider,provider_id));
@@ -33,7 +48,8 @@ CREATE TABLE IF NOT EXISTS sessions(id_hash TEXT PRIMARY KEY,user_id TEXT NOT NU
 CREATE TABLE IF NOT EXISTS oauth_flows(state_hash TEXT PRIMARY KEY,provider TEXT NOT NULL,verifier TEXT NOT NULL,expires_at INTEGER NOT NULL,link_user_id TEXT);
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,prompt TEXT,provider TEXT,model TEXT,created_at INTEGER NOT NULL,finished_at INTEGER,artifact_id TEXT,exit_code INTEGER);
 CREATE TABLE IF NOT EXISTS job_events(job_id TEXT NOT NULL,seq INTEGER NOT NULL,type TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(job_id,seq));
-CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,filename TEXT NOT NULL,filepath TEXT NOT NULL,size INTEGER NOT NULL,sha256 TEXT NOT NULL,created_at INTEGER NOT NULL);`);
+CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,filename TEXT NOT NULL,filepath TEXT NOT NULL,size INTEGER NOT NULL,sha256 TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS cli_pairings(user_id TEXT PRIMARY KEY,device_id TEXT NOT NULL,device_token TEXT NOT NULL,created_at INTEGER NOT NULL);`);
 if(!db.prepare('PRAGMA table_info(oauth_flows)').all().some(c=>c.name==='link_user_id'))db.exec('ALTER TABLE oauth_flows ADD COLUMN link_user_id TEXT');
 db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
 db.prepare('UPDATE jobs SET status = ? WHERE status IN (?,?,?)').run('interrupted','queued','running','cancelling');
@@ -48,8 +64,62 @@ const constantEq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return 
 const hashPass=p=>{const salt=crypto.randomBytes(16);return 'scrypt$'+salt.toString('hex')+'$'+crypto.scryptSync(p,salt,64).toString('hex')};
 const verifyPass=(pass,stored)=>{try {const [tag,salt,hash]=stored.split('$');if(tag!=='scrypt')return false;return constantEq(crypto.scryptSync(pass,Buffer.from(salt,'hex'),64).toString('hex'),hash)}catch{return false}};
 const cookieMap=req=>Object.fromEntries((req.headers.cookie||'').split(';').map(p=>p.trim()).filter(x=>x.includes('=')).map(x=>{let i=x.indexOf('=');return [x.slice(0,i),x.slice(i+1)]}));
+const backendOrigin=()=>{try{return new URL(CONFIG.baseUrl).origin}catch{return CONFIG.baseUrl}};
+const frontendOrigin=()=>{if(!CONFIG.frontendUrl)return backendOrigin();try{return new URL(CONFIG.frontendUrl).origin}catch{return CONFIG.frontendUrl}};
+const isCrossSite=()=>frontendOrigin()!==backendOrigin();
 const https=CONFIG.baseUrl.startsWith('https://');
-function setCookie(res,name,val,maxAge=604800, httpOnly=true){res.setHeader('Set-Cookie',[...(res.getHeader('Set-Cookie')||[]),`${name}=${encodeURIComponent(val)}; Path=/; SameSite=Lax; ${httpOnly?'HttpOnly; ':''}${https?'Secure; ':''}Max-Age=${maxAge}`])}
+function setCookie(res,name,val,maxAge=604800, httpOnly=true){
+  const sameSite=isCrossSite()?'None':'Lax';
+  const secure=isCrossSite()?true:https;
+  res.setHeader('Set-Cookie',[...(res.getHeader('Set-Cookie')||[]),`${name}=${encodeURIComponent(val)}; Path=/; SameSite=${sameSite}; ${httpOnly?'HttpOnly; ':''}${secure?'Secure; ':''}Max-Age=${maxAge}`]);
+}
+// ---- Rust WROSECODE server bridge (local HTTP API, bearer token never leaves server) ----
+let cachedMasterToken=null, cachedMasterAt=0;
+function loadMasterToken(){
+  if(cachedMasterToken && Date.now()-cachedMasterAt<30000) return cachedMasterToken;
+  for(const p of defaultTokenPaths()){
+    try{
+      const t=readFileSync(p,'utf8').trim();
+      if(t && t.length>=10){cachedMasterToken=t;cachedMasterAt=Date.now();return t}
+    }catch{}
+  }
+  return '';
+}
+function tokenForUser(user){
+  if(!user) return '';
+  try{
+    const row=db.prepare('SELECT device_token FROM cli_pairings WHERE user_id=?').get(user.id);
+    if(row?.device_token) return row.device_token;
+  }catch{}
+  return loadMasterToken();
+}
+async function rustFetch(rpath,{method='GET',body,token,timeoutMs=20000}={}){
+  const controller=new AbortController();const t=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const r=await fetch(CONFIG.wroseUrl+rpath,{method,signal:controller.signal,
+      headers:{'content-type':'application/json','user-agent':'WROSECODE-web-console/1.0',...(token?{authorization:`Bearer ${token}`}:{})},
+      body:body?JSON.stringify(body):undefined});
+    const text=await r.text();
+    let json=null;try{json=text?JSON.parse(text):null}catch{json={_raw:text.slice(0,4000)}}
+    return {status:r.status,json};
+  }catch(e){return {status:0,json:{error:e.name==='AbortError'?'Rust server timeout':'Rust server unreachable'}}}
+  finally{clearTimeout(t)}
+}
+function redactProviders(list){
+  return (Array.isArray(list)?list:[]).map(p=>{
+    const label=String(p.label||'');
+    const looksSecret=/(sk-|ghp_|github_pat_|api[_-]?key|secret|token)/i.test(label)||label.length>40&&/^[A-Za-z0-9\-_]{20,}$/.test(label);
+    return {id:p.id, kind:p.kind, base_url:p.base_url, model:p.model, status:p.status, label:looksSecret?p.id:label};
+  });
+}
+function redactModelGroups(groups){
+  return (Array.isArray(groups)?groups:[]).map(g=>{
+    const label=String(g.label||'');
+    const looksSecret=/(sk-|ghp_|github_pat_|api[_-]?key|secret|token)/i.test(label)||label.length>40&&/^[A-Za-z0-9\-_]{20,}$/.test(label);
+    return {...g, label:looksSecret?String(g.provider||'provider'):label};
+  });
+}
+function scrubRustText(s){return scrub(String(s||'')).slice(0,8000)}
 function userFor(req){const token=cookieMap(req).wrose_session;if(!token)return null;const user=db.prepare('SELECT users.id,users.email,users.role,users.approved FROM sessions JOIN users ON users.id=sessions.user_id WHERE sessions.id_hash=? AND sessions.expires_at>?').get(sha(token),now());return user||null}
 function publicUser(user){return user?{id:user.id,email:user.email,role:user.role,approved:!!user.approved,canRun:CONFIG.bridge!=='disabled'&&(user.role==='owner'||(user.approved&&CONFIG.allowMembers))}:null}
 function send(res,status,obj){if(res.writableEnded)return;res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
@@ -58,8 +128,24 @@ async function readBody(req,max=20_000){const chunks=[];let total=0;for await(co
 async function jsonBody(req){const buf=await readBody(req);try{return JSON.parse(buf.toString('utf8'))}catch{throw Object.assign(Error('Invalid JSON'),{status:400})}}
 const canRun=u=>u&&(u.role==='owner'||(u.approved&&CONFIG.allowMembers))&&CONFIG.bridge!=='disabled';
 const ipCount=new Map();
-function rateLimited(req){const key=req.socket.remoteAddress||'unknown';const t=now();const recent=(ipCount.get(key)||[]).filter(x=>t-x<60_000);if(recent.length>=40)return true;recent.push(t);ipCount.set(key,recent);return false}
-function safeOrigin(req){const o=req.headers.origin;if(!o)return true;return o===CONFIG.baseUrl}
+const authCount=new Map();
+function rateLimited(req,max=40){const key=req.socket.remoteAddress||'unknown';const t=now();const recent=(ipCount.get(key)||[]).filter(x=>t-x<60_000);if(recent.length>=max)return true;recent.push(t);ipCount.set(key,recent);return false}
+function authRateLimited(req,email=''){const t=now();
+  const ipk='auth:'+(req.socket.remoteAddress||'unknown');const iparr=(authCount.get(ipk)||[]).filter(x=>t-x<60_000);
+  if(iparr.length>=10) return true;iparr.push(t);authCount.set(ipk,iparr);
+  if(email){const ek='email:'+String(email).toLowerCase();const earr=(authCount.get(ek)||[]).filter(x=>t-x<60_000);if(earr.length>=10) return true;earr.push(t);authCount.set(ek,earr)}
+  return false}
+function allowedOrigins(){const o=new Set([backendOrigin()]);if(CONFIG.frontendUrl)o.add(frontendOrigin());return o}
+function safeOrigin(req){const o=req.headers.origin;if(!o)return true;return allowedOrigins().has(o)}
+function applyCors(req,res){
+  if(!CONFIG.frontendUrl) return;
+  const o=req.headers.origin;
+  if(o&&allowedOrigins().has(o)){
+    res.setHeader('access-control-allow-origin',o);
+    res.setHeader('access-control-allow-credentials','true');
+    res.setHeader('vary','Origin');
+  }
+}
 const secrets=/(bearer\s+)\S+|((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|authorization|cookie|password|signature|auth_user_id)\s*[:=]\s*)[^\s&"']+|(https?:\/\/[^\s?#]+\?)[^\s#]+|\b(?:sk-[\w-]{12,}|ghp_[\w-]{12,}|github_pat_[\w-]{12,})\b/gi;
 function scrub(s){return String(s).replace(secrets,(m,p1,p2,p3)=>p1?p1+'[REDACTED]':p2?p2+'[REDACTED]':p3?p3+'[REDACTED QUERY]':'[REDACTED]') .replace(/\x1b\[[0-9;]*[a-zA-Z]/g,'').slice(0,6000)}
 function addEvent(job,type,data){const running=liveJobs.get(job.id);if(type==='log'&&running&&running.logCount++>700)return;const seq=running?(++running.seq):(db.prepare('SELECT COALESCE(MAX(seq),0)+1 AS n FROM job_events WHERE job_id=?').get(job.id).n);const sanitized={...data};if(typeof sanitized.text==='string')sanitized.text=scrub(sanitized.text);db.prepare('INSERT INTO job_events(job_id,seq,type,payload) VALUES(?,?,?,?)').run(job.id,seq,type,JSON.stringify(sanitized));if(running){for(const s of running.listeners)try{s.write(`id: ${seq}\nevent: ${type}\ndata: ${JSON.stringify(sanitized)}\n\n`)}catch{}}}
@@ -92,7 +178,7 @@ let code=-1;try{if(CONFIG.bridge==='mock'){
 function schedule(){while(activeCount<CONFIG.maxJobs&&waitQueue.length){const job=waitQueue.shift();executeJob(job).catch(()=>{})}}
 function sessionFor(res,user){const token=rand();db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(sha(token),user.id,now()+7*86400000);setCookie(res,'wrose_session',token);return publicUser(user)}
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png','.ico':'image/x-icon'};
-async function staticFile(req,res,urlPath){let name=urlPath==='/'?'index.html':decodeURIComponent(urlPath).slice(1);if(name.includes('..')||name.includes('\\')||!/^([\w.\/-]+)$/.test(name))return error(res,404,'Not found');if(name.startsWith('server/')||name.startsWith('data/')||name.startsWith('tests/')||name.startsWith('scripts/')||name.startsWith('.')||name.startsWith('node_modules/'))return error(res,404,'Not found');const full=path.resolve(ROOT,name);if(!full.startsWith(ROOT+path.sep))return error(res,404,'Not found');try{const file=await readFile(full);res.writeHead(200,{'content-type':mime[path.extname(full)]||'application/octet-stream','cache-control':'public, max-age=600','x-content-type-options':'nosniff'});res.end(req.method==='HEAD'?undefined:file)}catch{error(res,404,'Not found')}}
+async function staticFile(req,res,urlPath){let name=urlPath==='/'?'index.html':decodeURIComponent(urlPath).slice(1);if(name.includes('..')||name.includes('\\')||!/^([\w.\/-]+)$/.test(name))return error(res,404,'Not found');if(name.startsWith('server/')||name.startsWith('data/')||name.startsWith('tests/')||name.startsWith('scripts/')||name.startsWith('dist/')||name==='_headers'||name.startsWith('.')||name.startsWith('node_modules/'))return error(res,404,'Not found');const full=path.resolve(ROOT,name);if(!full.startsWith(ROOT+path.sep))return error(res,404,'Not found');try{const file=await readFile(full);res.writeHead(200,{'content-type':mime[path.extname(full)]||'application/octet-stream','cache-control':'public, max-age=600','x-content-type-options':'nosniff'});res.end(req.method==='HEAD'?undefined:file)}catch{error(res,404,'Not found')}}
 const oauthSpecs={google:{auth:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',identity:'https://openidconnect.googleapis.com/v1/userinfo',scope:'openid email profile'},github:{auth:'https://github.com/login/oauth/authorize',token:'https://github.com/login/oauth/access_token',identity:'https://api.github.com/user',scope:'read:user user:email'}};
 async function tokenFetch(url,opt){const controller=new AbortController();const t=setTimeout(()=>controller.abort(),12000);try{const res=await fetch(url,{...opt,signal:controller.signal,headers:{'user-agent':'WROSECODE-web-console/1.0',...opt.headers}});if(!res.ok)throw Error('OAuth provider request failed');return res.json()}finally{clearTimeout(t)}}
 async function oauthCallback(provider,u,req,res){const state=u.searchParams.get('state')||'', flow=cookieMap(req).wrose_oauth||'';if(!constantEq(state,flow))return error(res,400,'OAuth state mismatch');const record=db.prepare('SELECT * FROM oauth_flows WHERE state_hash=? AND provider=? AND expires_at>?').get(sha(state),provider,now());db.prepare('DELETE FROM oauth_flows WHERE state_hash=?').run(sha(state));setCookie(res,'wrose_oauth','',0);if(!record||!u.searchParams.get('code'))return error(res,400,'OAuth flow expired');const cfg=oauthSpecs[provider];const clientId=provider==='google'?CONFIG.oauthGoogleId:CONFIG.oauthGithubId;const secret=provider==='google'?CONFIG.oauthGoogleSecret:CONFIG.oauthGithubSecret;
@@ -105,17 +191,40 @@ else if(!user){if(db.prepare('SELECT id FROM users WHERE email=?').get(email))re
 sessionFor(res,user);res.writeHead(302,{location:'/console.html'}).end()}
 
 export function createServer(){return http.createServer(async(req,res)=>{
-  res.setHeader('x-content-type-options','nosniff');res.setHeader('referrer-policy','no-referrer');res.setHeader('x-frame-options','DENY');res.setHeader('permissions-policy','camera=(), microphone=(), geolocation=()');res.setHeader('content-security-policy',"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://accounts.google.com https://github.com");
+  res.setHeader('x-content-type-options','nosniff');res.setHeader('referrer-policy','no-referrer');res.setHeader('x-frame-options','DENY');res.setHeader('permissions-policy','camera=(), microphone=(), geolocation=()');res.setHeader('content-security-policy',"default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://accounts.google.com https://github.com");
+  applyCors(req,res);
   try{
     const url=new URL(req.url,'http://localhost');const p=url.pathname;const method=req.method;
-    if(p==='/api/health'&&method==='GET')return send(res,200,{ok:true,bridge:CONFIG.bridge,readyForLiveAgent:CONFIG.bridge==='cli',time:new Date().toISOString()});
+    if(method==='OPTIONS'){
+      if(p.startsWith('/api/')){res.setHeader('access-control-allow-methods','GET,POST,OPTIONS');res.setHeader('access-control-allow-headers','content-type');res.writeHead(204);res.end();return}
+      return error(res,404,'Not found');
+    }
+    if(p==='/api/health'&&method==='GET'){
+      const tok=loadMasterToken();
+      let rust={reachable:false};
+      try{
+        const h=await rustFetch('/health',{timeoutMs:3000});
+        rust.reachable=h.status===200;
+        if(rust.reachable&&tok){
+          const s=await rustFetch('/v1/status',{token:tok,timeoutMs:5000});
+          rust.authorized=s.status!==401;rust.apiStatus=s.status;
+          if(s.status===200){rust.paired_devices=s.json?.server?.paired_devices??s.json?.paired_devices??null;rust.pending_codes=s.json?.server?.pending_codes??s.json?.pending_codes??null}
+          else if(s.status===503){rust.busy=true}
+          else if(s.status!==0){rust.error=String(s.json?.error||'').slice(0,200)}
+        }
+      }catch{}
+      return send(res,200,{ok:true,bridge:CONFIG.bridge,rust,wroseUrl:CONFIG.wroseUrl,tokenConfigured:!!tok,readyForLiveAgent:CONFIG.bridge==='cli'&&rust.reachable,time:new Date().toISOString()});
+    }
     if(method==='POST'&&!safeOrigin(req))return error(res,403,'Invalid origin');
-    if(p==='/api/config'&&method==='GET')return send(res,200,{bridge:CONFIG.bridge,signup:CONFIG.signup,google:!!(CONFIG.oauthGoogleId&&CONFIG.oauthGoogleSecret),github:!!(CONFIG.oauthGithubId&&CONFIG.oauthGithubSecret),baseUrl:CONFIG.baseUrl});
+    if(p==='/api/config'&&method==='GET')return send(res,200,{bridge:CONFIG.bridge,signup:CONFIG.signup,google:!!(CONFIG.oauthGoogleId&&CONFIG.oauthGoogleSecret),github:!!(CONFIG.oauthGithubId&&CONFIG.oauthGithubSecret),baseUrl:CONFIG.baseUrl,frontendUrl:CONFIG.frontendUrl||CONFIG.baseUrl,wroseUrl:CONFIG.wroseUrl,rustTokenConfigured:!!loadMasterToken()});
     if(p==='/api/auth/register'&&method==='POST'){
-      if(rateLimited(req))return error(res,429,'Try again later');if(CONFIG.signup!=='open')return error(res,403,'Registration disabled. Ask the owner to invite you.');const {email,password}=await jsonBody(req);if(!emailOK(email)||typeof password!=='string'||password.length<12||password.length>200)return error(res,400,'Use a valid email and password of 12–200 characters');if(db.prepare('SELECT id FROM users WHERE email=?').get(email.toLowerCase()))return error(res,409,'Account already exists');const uid=id();db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(uid,email.toLowerCase(),hashPass(password),'member',0,now());return send(res,201,{message:'Account created. The owner must approve execution access.'});
+      const pre=await jsonBody(req).catch(()=>null);
+      if(pre&&authRateLimited(req,pre.email))return error(res,429,'Too many attempts. Try again later');
+      if(CONFIG.signup!=='open')return error(res,403,'Registration disabled. Ask the owner to invite you.');const {email,password}=pre||{};if(!emailOK(email)||typeof password!=='string'||password.length<12||password.length>200)return error(res,400,'Use a valid email and password of 12–200 characters');if(db.prepare('SELECT id FROM users WHERE email=?').get(email.toLowerCase()))return error(res,409,'Account already exists');const uid=id();db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(uid,email.toLowerCase(),hashPass(password),'member',0,now());return send(res,201,{message:'Account created. The owner must approve execution access.'});
     }
     if(p==='/api/auth/login'&&method==='POST'){
-      if(rateLimited(req))return error(res,429,'Try again later');const {email,password}=await jsonBody(req);const user=typeof email==='string'?db.prepare('SELECT * FROM users WHERE email=?').get(email.toLowerCase()):null;if(typeof password!=='string'||!user?.pass_hash||!verifyPass(password,user.pass_hash))return error(res,401,'Invalid email or password');return send(res,200,{user:sessionFor(res,user)});
+      const pre=await jsonBody(req).catch(()=>null);
+      if(authRateLimited(req,pre?.email))return error(res,429,'Too many attempts. Try again later');const {email,password}=pre||{};const user=typeof email==='string'?db.prepare('SELECT * FROM users WHERE email=?').get(email.toLowerCase()):null;if(typeof password!=='string'||!user?.pass_hash||!verifyPass(password,user.pass_hash))return error(res,401,'Invalid email or password');return send(res,200,{user:sessionFor(res,user)});
     }
     if(p.startsWith('/api/oauth/')&&method==='GET'){
       const parts=p.split('/');const provider=parts[3],callback=parts[4];const cfg=oauthSpecs[provider];if(!cfg)return error(res,404,'Unknown provider');const clientId=provider==='google'?CONFIG.oauthGoogleId:CONFIG.oauthGithubId;const secret=provider==='google'?CONFIG.oauthGoogleSecret:CONFIG.oauthGithubSecret;if(!clientId||!secret)return error(res,503,'OAuth provider not configured');
@@ -150,6 +259,118 @@ export function createServer(){return http.createServer(async(req,res)=>{
       }
       if(p==='/api/admin/users'&&method==='GET'&&user.role==='owner')return send(res,200,{users:db.prepare('SELECT id,email,role,approved,created_at FROM users ORDER BY created_at DESC LIMIT 200').all()});
       if(p==='/api/admin/approve'&&method==='POST'&&user.role==='owner'){const b=await jsonBody(req);if(typeof b.id!=='string'||typeof b.approved!=='boolean')return error(res,400,'Invalid approval');db.prepare("UPDATE users SET approved=? WHERE id=? AND role='member'").run(b.approved?1:0,b.id);return send(res,200,{ok:true,memberJobsAvailable:CONFIG.allowMembers})}
+      // ---- Real Rust CLI bridge (per-user pairing, streaming, no token to browser) ----
+      if(p==='/api/cli/status'&&method==='GET'){
+        const pairing=(()=>{try{return db.prepare('SELECT device_id,created_at FROM cli_pairings WHERE user_id=?').get(user.id)||null}catch{return null}})();
+        const tok=tokenForUser(user);
+        if(!tok) return send(res,200,{reachable:false,authorized:false,paired:!!pairing,device_id:pairing?.device_id||null,error:'Rust token not configured on server'});
+        const h=await rustFetch('/health',{timeoutMs:4000});
+        if(h.status!==200) return send(res,200,{reachable:false,authorized:false,paired:!!pairing,device_id:pairing?.device_id||null,error:'Rust server offline'});
+        const s=await rustFetch('/v1/status',{token:tok,timeoutMs:8000});
+        if(s.status===401) return send(res,200,{reachable:true,authorized:false,paired:!!pairing,device_id:pairing?.device_id||null,error:'Unauthorized — re-pair this device'});
+        if(s.status===503) return send(res,200,{reachable:true,authorized:true,busy:true,paired:!!pairing,device_id:pairing?.device_id||null,status:'busy',error:'Agent busy; retry shortly'});
+        if(s.status!==200) return send(res,200,{reachable:true,authorized:true,paired:!!pairing,device_id:pairing?.device_id||null,error:String(s.json?.error||'Rust status failed').slice(0,200)});
+        return send(res,200,{reachable:true,authorized:true,busy:false,paired:!!pairing,device_id:pairing?.device_id||null,
+          provider:s.json?.provider||s.json?.server?.provider||null, model:s.json?.model||s.json?.server?.model||null,
+          paired_devices:s.json?.server?.paired_devices??null, pending_codes:s.json?.server?.pending_codes??null,
+          cloud_bridge:s.json?.server?.cloud_bridge||null, uptime_secs:s.json?.server?.uptime_secs??null});
+      }
+      if(p==='/api/cli/pair'&&method==='POST'){
+        if(!canRun(user)&&user.role!=='owner')return error(res,403,'Execution access not approved');
+        if(rateLimited(req,10))return error(res,429,'Too many pairing attempts');
+        const b=await jsonBody(req);const code=String(b.code||'').trim();
+        if(!/^\d{3}-\d{3}$/.test(code))return error(res,400,'Enter the 6-digit code as 123-456');
+        const master=loadMasterToken();if(!master)return error(res,503,'Rust token not configured on server');
+        const r=await rustFetch('/v1/pair/confirm',{method:'POST',token:master,body:{code,account_id:user.email,device_name:String(b.device_name||'Browser device').slice(0,80)},timeoutMs:10000});
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'Pairing failed').slice(0,200));
+        try{db.prepare('INSERT INTO cli_pairings(user_id,device_id,device_token,created_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET device_id=excluded.device_id,device_token=excluded.device_token,created_at=excluded.created_at').run(user.id,String(r.json.device_id),String(r.json.device_token),now())}catch(e){return error(res,500,'Could not store pairing')}
+        return send(res,200,{ok:true,device_id:String(r.json.device_id)});
+      }
+      if(p==='/api/cli/revoke'&&method==='POST'){
+        const pairing=(()=>{try{return db.prepare('SELECT device_id FROM cli_pairings WHERE user_id=?').get(user.id)}catch{return null}})();
+        if(!pairing) return error(res,404,'No paired device');
+        const master=loadMasterToken();
+        if(master){await rustFetch('/v1/devices/revoke',{method:'POST',token:master,body:{device_id:pairing.device_id},timeoutMs:8000})}
+        try{db.prepare('DELETE FROM cli_pairings WHERE user_id=?').run(user.id)}catch{}
+        return send(res,200,{ok:true});
+      }
+      if(p==='/api/cli/providers'&&method==='GET'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const r=await rustFetch('/v1/providers',{token:tokenForUser(user),timeoutMs:10000});
+        if(r.status===401) return error(res,401,'Unauthorized — re-pair this device');
+        if(r.status===503) return error(res,503,'Agent busy; retry shortly');
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'Provider lookup failed').slice(0,200));
+        return send(res,200,{providers:redactProviders(r.json?.providers)});
+      }
+      if(p==='/api/cli/models'&&method==='GET'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const provider=String(url.searchParams.get('provider')||'').slice(0,80);
+        const r=await rustFetch('/v1/models'+(provider?`?provider=${encodeURIComponent(provider)}&limit=100`:''),{token:tokenForUser(user),timeoutMs:15000});
+        if(r.status===401) return error(res,401,'Unauthorized — re-pair this device');
+        if(r.status===503) return error(res,503,'Agent busy; retry shortly');
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'Model lookup failed').slice(0,200));
+        return send(res,200,{groups:redactModelGroups(r.json?.groups),models:r.json?.models||[]});
+      }
+      if(p==='/api/cli/chat'&&method==='POST'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        if(rateLimited(req,20))return error(res,429,'Too many chat requests');
+        const b=await jsonBody(req);
+        if(typeof b.prompt!=='string'||!b.prompt.trim()||b.prompt.length>32000)return error(res,400,'Prompt must be 1–32000 characters');
+        const ident=/^[\w.\/:@\-]{1,100}$/;if(b.provider&&!ident.test(b.provider))return error(res,400,'Invalid provider');if(b.model&&!ident.test(b.model))return error(res,400,'Invalid model');
+        const r=await rustFetch('/v1/chat',{method:'POST',token:tokenForUser(user),body:{prompt:b.prompt.trim(),provider:b.provider||undefined,model:b.model||undefined,session_id:b.session_id||undefined,mode:b.mode||undefined},timeoutMs:Math.min(CONFIG.maxSeconds,300)*1000});
+        if(r.status===401) return error(res,401,'Unauthorized — re-pair this device');
+        if(r.status===503) return error(res,503,'Agent busy; retry shortly');
+        if(r.status!==200) return error(res,r.status===0?502:r.status,scrubRustText(r.json?.error||'Chat failed'));
+        return send(res,200,{answer:scrubRustText(r.json?.answer||''),session_id:String(r.json?.session_id||''),metrics:r.json?.metrics||null});
+      }
+      if(p==='/api/cli/chat/stream'&&method==='POST'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const b=await jsonBody(req);
+        if(typeof b.prompt!=='string'||!b.prompt.trim()||b.prompt.length>32000)return error(res,400,'Prompt must be 1–32000 characters');
+        const tok=tokenForUser(user);
+        const controller=new AbortController();const killer=setTimeout(()=>controller.abort(),Math.min(CONFIG.maxSeconds,300)*1000);
+        let upstream;try{upstream=await fetch(CONFIG.wroseUrl+'/v1/chat/stream',{method:'POST',signal:controller.signal,headers:{'content-type':'application/json',authorization:`Bearer ${tok}`},body:JSON.stringify({prompt:b.prompt.trim(),provider:b.provider||undefined,model:b.model||undefined,session_id:b.session_id||undefined,mode:b.mode||undefined})})}catch{clearTimeout(killer);return error(res,502,'Rust server unreachable')}
+        clearTimeout(killer);
+        if(upstream.status===401) return error(res,401,'Unauthorized — re-pair this device');
+        if(upstream.status===503) return error(res,503,'Agent busy; retry shortly');
+        if(!upstream.ok||!upstream.body) return error(res,502,'Chat stream failed');
+        res.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache, no-transform','connection':'keep-alive','x-accel-buffering':'no'});
+        res.write(': connected\n\n');
+        try{for await(const chunk of upstream.body){const t=scrubRustText(Buffer.from(chunk).toString('utf8'));res.write(t)}}catch{}
+        try{res.end()}catch{}return;
+      }
+      if(p==='/api/cli/sessions'&&method==='GET'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const r=await rustFetch('/v1/sessions',{token:tokenForUser(user),timeoutMs:10000});
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'Session lookup failed').slice(0,200));
+        const mine=(r.json?.sessions||[]).filter(s=>!s.account_id||s.account_id===user.email);
+        return send(res,200,{sessions:mine});
+      }
+      if(p==='/api/cli/ctf/status'&&method==='GET'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const r=await rustFetch('/v1/ctf/status',{token:tokenForUser(user),timeoutMs:10000});
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'CTF status failed').slice(0,200));
+        return send(res,200,r.json);
+      }
+      if(p==='/api/cli/ctf/upload'&&method==='POST'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const b=await jsonBody(req);
+        if(typeof b.filename!=='string'||!b.filename||b.filename.length>100)return error(res,400,'Invalid filename');
+        if(typeof b.content_base64!=='string'||!b.content_base64)return error(res,400,'content_base64 is required');
+        if(b.content_base64.length>22*1024*1024)return error(res,413,'Artifact exceeds 16 MiB');
+        const r=await rustFetch('/v1/ctf/upload',{method:'POST',token:tokenForUser(user),body:{filename:b.filename,content_base64:b.content_base64,description:String(b.description||'').slice(0,500)},timeoutMs:20000});
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'CTF upload failed').slice(0,200));
+        return send(res,200,{artifact_id:r.json?.artifact_id,path:undefined,size:r.json?.size,sha256:r.json?.sha256});
+      }
+      if(p==='/api/cli/ctf/start'&&method==='POST'){
+        if(!canRun(user))return error(res,403,'Execution access not approved');
+        const b=await jsonBody(req);
+        if(typeof b.target!=='string'||!b.target.trim()||b.target.length>8000)return error(res,400,'Target must be 1–8000 characters');
+        const r=await rustFetch('/v1/ctf/start',{method:'POST',token:tokenForUser(user),body:{target:b.target.trim(),category:b.category||undefined,flag_format:b.flag_format||undefined,budget:b.budget||undefined},timeoutMs:15000});
+        if(r.status===503) return error(res,503,'Agent busy; retry shortly');
+        if(r.status!==200) return error(res,r.status===0?502:r.status,String(r.json?.error||'CTF start failed').slice(0,200));
+        return send(res,200,{job_id:r.json?.job_id,status:r.json?.status});
+      }
       return error(res,404,'API route not found')
     }
     if(method==='GET'||method==='HEAD')return await staticFile(req,res,p);

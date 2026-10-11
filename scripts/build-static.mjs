@@ -26,7 +26,9 @@ const files = [
   "console.js",
   "docs.js",
   "login.js",
+  "backend.js",
   "favicon.svg",
+  "_headers",
   "assets"
 ];
 
