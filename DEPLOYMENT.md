@@ -15,7 +15,25 @@ openssl rand -hex 32           # copy result to PROVIDER_ENCRYPTION_KEY in .env;
 node --env-file=.env server/server.mjs
 ```
 
-Open `http://127.0.0.1:8787/login.html`. Register a new account, or create an owner with the existing `scripts/create-admin.mjs` using `ADMIN_EMAIL` and `ADMIN_PASSWORD`. `data/wrosecode-web.sqlite` holds the user/session/agent metadata and **encrypted** provider API keys. Back up the DB and encryption key securely; loss of the key makes stored API keys unrecoverable.
+Open `http://127.0.0.1:8787/login.html`. Initialize the owner before opening registration with `sudo -u kali ./scripts/create-admin.sh`; it prompts for the password without echoing it. `data/wrosecode-web.sqlite` holds the user/session/agent metadata and **encrypted** provider API keys. Back up the DB and encryption key securely; loss of the key makes stored API keys unrecoverable.
+
+## Run as a system service on Kali
+
+`deploy/wrosecode-web.service` runs Node as the unprivileged `kali` account, reads the existing private `.env`, writes only under `data/`, restarts after failures, and shuts down gracefully. Preserve the existing `.env` values; make sure `data/` and `.env` are owned by `kali` with modes `700` and `600` before enabling it:
+
+```bash
+sudo chown kali:kali .env
+sudo chmod 600 .env
+sudo chown -R kali:kali data
+sudo chmod 700 data
+sudo install -m 644 deploy/wrosecode-web.service /etc/systemd/system/wrosecode-web.service
+sudo install -D -m 644 deploy/cloudflared-wrosecode.conf /etc/systemd/system/cloudflared.service.d/wrosecode.conf
+sudo systemctl daemon-reload
+sudo systemctl enable --now wrosecode-web
+sudo systemctl status wrosecode-web --no-pager
+```
+
+The Cloudflare drop-in orders the connector after Node on boot. Enable Cloudflare only after rotating the exposed token and configuring a real published route. Restarting Node preserves SQLite accounts and sessions. Port 8787 stays bound to loopback; the Rust API stays on 4076 and must not be published.
 
 By default, unapproved members can pair **their own CLI companion** and use their own AI API profiles. `ALLOW_MEMBER_JOBS=0` and `I_ACCEPT_SHARED_CLI_RISK=no` prevent members from running the **server owner's shared local CLI**. Do NOT set these to unsafe values to work around pairing errors.
 
@@ -23,10 +41,10 @@ By default, unapproved members can pair **their own CLI companion** and use thei
 
 Recommended for Safari and maximum cookie reliability:
 
-1. Configure a stable **custom domain** in Cloudflare (example `console.example.com`), with Cloudflare Tunnel forwarding HTTPS to Node `127.0.0.1:8787`. The tunnel connector runs on the Node host. Keep Node bound to loopback and firewall it. The website files are also served by the Node backend on that hostname, so authentication is **same-origin**.
-2. In `.env`, set `PUBLIC_BASE_URL=https://console.example.com`, `FRONTEND_URL=https://console.example.com`.
-3. Restart the Node service. Visit `https://console.example.com/login.html` in Safari; test real login/logout.
-4. Keep `https://wrosecode-web.pages.dev` as the marketing/public static frontend. To make its navigation open the live secure console, insert `window.WROSECODE_BACKEND = 'https://console.example.com';` at the TOP of `backend.js`, then rebuild and redeploy. **Never put tokens, client secrets or API keys in `backend.js`.**
+1. A Cloudflare Tunnel public hostname requires a hostname in a DNS zone you control. A Pages `*.pages.dev` name is not a customer DNS zone. The currently installed connector has no ingress rules and returns 503, so it does not publish this backend.
+2. The host currently has a Tailscale `*.ts.net` name, but Tailscale is stopped. Funnel can publish a stable HTTPS name after tailnet policy and owner authorization. Funnel is in beta and its docs advise against exposing services that contain sensitive data; this app stores account and provider-key metadata. Treat Funnel as a controlled evaluation path, not the production recommendation for public multi-user access.
+3. For a production public service, use an authorized public HTTPS backend hostname (a Cloudflare Tunnel hostname under a domain you control, or a separately hosted backend). In `.env`, set `PUBLIC_BASE_URL=https://ACTUAL_BACKEND_HOST` and `FRONTEND_URL=https://wrosecode-web.pages.dev`. The Node server serves the login and console on the backend host so its session cookie is first-party.
+4. Configure Cloudflare Pages build environment variable `WROSECODE_BACKEND_URL=https://ACTUAL_BACKEND_HOST`. `npm run build` embeds this public URL into only `dist/backend.js`; it never embeds secrets. Pages navigation sends login and console pages to the backend hostname. Login on the backend hostname directly for Safari and verify real login/logout.
 
 Avoid cross-site cookies for production iPhone login: browsers including Safari block third-party cookies even when SameSite=None. For this reason, prefer the full Node-served console on the backend hostname over cross-origin `/api` from `pages.dev`.
 
@@ -41,7 +59,7 @@ npm run build
 npm test
 ```
 
-Cloudflare Pages settings: Git repository root `WROSECODE-Web-Console/` if nested in a larger repo, otherwise `/`; framework `None`; build command `npm run build`; output directory `dist`. Deployment is not proven until Cloudflare reports success, and its domain remains frontend-only. The ZIP includes a prebuilt `dist` that contains only public allowlisted assets.
+Cloudflare Pages settings: Git repository root `WROSECODE-Web-Console/` if nested in a larger repo, otherwise `/`; framework `None`; build command `npm run build`; output directory `dist`; set the non-secret build variable `WROSECODE_BACKEND_URL` to the actual HTTPS backend origin. Deployment is not proven until Cloudflare reports success. The build output contains only public allowlisted assets.
 
 ## 4. OAuth
 

@@ -15,7 +15,7 @@ const id=()=>crypto.randomUUID();
 const now=()=>Date.now();
 function publicIp(ip){
  if(net.isIP(ip)===4){let a=ip.split('.').map(Number);return !(a[0]===0||a[0]===10||a[0]===127||a[0]>=224||(a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||(a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127)||(a[0]===192&&a[1]===0)|| (a[0]===198&&a[1]===18) || (a[0]===198&&a[1]===19));}
- if(net.isIP(ip)===6){const s=ip.toLowerCase();return !(s==='::1'||s==='::'||(s.startsWith('fe')&&/^fe[89ab][0-9a-f]:/.test(s))||s.startsWith('fc')||s.startsWith('fd')||s.startsWith('::ffff:')||s.startsWith('2001:db8:'));}
+ if(net.isIP(ip)===6){const s=ip.toLowerCase();const first=parseInt(s.split(':')[0]||'0',16);return (first&0xe000)===0x2000&&!s.startsWith('2001:db8:')&&!s.startsWith('2002:');}
  return false;
 }
 async function safeEndpoint(raw){
@@ -54,6 +54,7 @@ export function createAiProviders({db,send,error,jsonBody,addEvent,announce,live
    const b=await jsonBody(req);if(typeof b.name!=='string'||b.name.trim().length<2||b.name.length>60||typeof b.apiKey!=='string'||b.apiKey.length<8||b.apiKey.length>1000)return error(res,400,'Invalid provider name/key');
    const selected=b.preset==='custom'?b.baseUrl:presets[b.preset];if(typeof selected!=='string')return error(res,400,'Unknown preset');
    if(b.preset==='custom'&&process.env.ALLOW_CUSTOM_PROVIDERS!=='1')return error(res,403,'Custom endpoints are disabled by the server owner; set ALLOW_CUSTOM_PROVIDERS=1 to opt in');
+   if(db.prepare('SELECT COUNT(*) AS n FROM ai_profiles WHERE user_id=?').get(user.id).n>=25)return error(res,429,'Each account can save up to 25 provider profiles');
    if(!selected.startsWith('https://'))return error(res,400,'Provider must be a public HTTPS endpoint');
    if(!encryptionKey)return error(res,503,'Configure PROVIDER_ENCRYPTION_KEY before adding provider profiles');
    const u=await safeEndpoint(selected);const baseUrl=u.url.href.replace(/\/$/,'');
@@ -101,7 +102,7 @@ export function createAiProviders({db,send,error,jsonBody,addEvent,announce,live
    }});
    if(final)db.prepare('INSERT INTO ai_messages(session_id,user_id,role,content,created_at) VALUES(?,?,?,?,?)').run(session.id,user.id,'assistant',final.slice(0,80_000),now());
    status='completed';exitCode=0;
-  }catch(e){addEvent(job,'log',{text:`Provider error: ${String(e.message).slice(0,300)}`})}
+  }catch(e){const message=String(e.message).replace(/(?:bearer\s+|(?:api[_-]?key|secret|token|authorization)\s*[:=]\s*)\S+/gi,'[REDACTED]').replace(/\b(?:sk-[\w-]{12,}|ghp_[\w-]{12,}|github_pat_[\w-]{12,})\b/gi,'[REDACTED]');addEvent(job,'log',{text:`Provider error: ${message.slice(0,300)}`})}
   const latest=db.prepare('SELECT status FROM jobs WHERE id=?').get(job.id);
   if(latest?.status==='cancelled')status='cancelled';
   db.prepare('UPDATE jobs SET exit_code=? WHERE id=?').run(exitCode,job.id);announce(job,status,{exitCode});addEvent(job,'done',{status,exitCode,verified:false});

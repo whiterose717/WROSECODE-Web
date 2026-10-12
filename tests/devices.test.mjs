@@ -23,12 +23,14 @@ test('open sign-up, account-scoped devices, pair/revoke, real SSE protocol, and 
  alice=await req('/api/auth/login',{method:'POST',body:{email:'alice@example.net',password:'this-is-a-long-password-for-alice'}});bob=await req('/api/auth/login',{method:'POST',body:{email:'bob@example.net',password:'this-is-a-long-password-for-bob'}});
  assert.equal(alice.res.status,200);assert.equal(bob.res.status,200);
  const ac=alice.cookie,bc=bob.cookie;
+ const sharedStatus=await req('/api/cli/status',{cookie:ac});assert.equal(sharedStatus.res.status,200);assert.equal(sharedStatus.data.authorized,false);assert.equal(sharedStatus.data.paired,false);
  let pair=await req('/api/devices/pair',{method:'POST',cookie:ac,body:{}});assert.equal(pair.res.status,201);assert.match(pair.data.code,/^[A-Z2-9]{6}-[A-Z2-9]{6}$/);
  let attempt=await req('/api/agent/enroll',{method:'POST',body:{code:'AAAAAA-BBBBBB',name:'malicious'}});assert.equal(attempt.res.status,403);
  const enrolled=await req('/api/agent/enroll',{method:'POST',body:{code:pair.data.code,name:'Alice Kali'}});assert.equal(enrolled.res.status,201);
  const token=enrolled.data.deviceToken;
  attempt=await req('/api/agent/enroll',{method:'POST',body:{code:pair.data.code,name:'reuse'}});assert.equal(attempt.res.status,403);
  let dev=await req('/api/devices',{cookie:ac});assert.equal(dev.data.devices.length,1);assert.equal(dev.data.devices[0].online,true);
+ const providerList=await req('/api/providers',{cookie:ac});assert.equal(providerList.res.status,200);assert.equal(providerList.data.deviceLocal,true);assert.match(providerList.data.raw,/device-local/i);
  dev=await req('/api/devices',{cookie:bc});assert.equal(dev.data.devices.length,0);
  const aJob=await req('/api/jobs',{method:'POST',cookie:ac,body:{kind:'chat',prompt:'Analyze my own repository'}});assert.equal(aJob.res.status,201,stderr);
  const bJob=await req('/api/jobs',{method:'POST',cookie:bc,body:{kind:'chat',prompt:'Unpaired job'}});assert.equal(bJob.res.status,403);

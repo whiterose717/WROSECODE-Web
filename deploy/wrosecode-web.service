@@ -1,0 +1,33 @@
+[Unit]
+Description=WROSECODE authenticated web console
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=kali
+Group=kali
+WorkingDirectory=/home/kali/Desktop/myweb/WROSECODE-Web-Console
+ExecStart=/usr/local/lib/wrosecode/node --env-file=.env server/server.mjs
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=15s
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/home/kali/Desktop/myweb/WROSECODE-Web-Console/data
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -40,7 +40,7 @@ export function createRustBridge({ db, send, error, jsonBody, scrub }) {
       const row = db.prepare('SELECT device_token FROM cli_pairings WHERE user_id=?').get(user.id);
       if (row?.device_token) return row.device_token;
     } catch {}
-    return loadMaster();
+    return user.role === 'owner' ? loadMaster() : '';
   }
   async function rustFetch(rpath, { method = 'GET', body, token, timeoutMs = 20000 } = {}) {
     const controller = new AbortController();
@@ -77,9 +77,9 @@ export function createRustBridge({ db, send, error, jsonBody, scrub }) {
   async function statusFor(user) {
     const pairing = (() => { try { return db.prepare('SELECT device_id FROM cli_pairings WHERE user_id=?').get(user.id) || null } catch { return null } })();
     const tok = tokenFor(user);
-    if (!tok) return { reachable: false, authorized: false, paired: !!pairing, device_id: pairing?.device_id || null, error: 'Rust token not configured on server' };
     const h = await rustFetch('/health', { timeoutMs: 4000 });
     if (h.status !== 200) return { reachable: false, authorized: false, paired: !!pairing, device_id: pairing?.device_id || null, error: 'Rust server offline' };
+    if (!tok) return { reachable: true, authorized: false, paired: !!pairing, device_id: pairing?.device_id || null, error: pairing ? 'Rust server reachable; paired-device token is unavailable' : 'Rust server reachable; this account has no paired Rust device' };
     const s = await rustFetch('/v1/status', { token: tok, timeoutMs: 8000 });
     if (s.status === 401) return { reachable: true, authorized: false, paired: !!pairing, device_id: pairing?.device_id || null, error: 'Unauthorized — re-pair this device' };
     if (s.status === 503) return { reachable: true, authorized: true, busy: true, paired: !!pairing, device_id: pairing?.device_id || null, status: 'busy', error: 'Agent busy; retry shortly' };
@@ -96,6 +96,7 @@ export function createRustBridge({ db, send, error, jsonBody, scrub }) {
   async function handle(req, res, url, user, helpers) {
     const { canRun, rateLimited, CONFIG } = helpers;
     const p = url.pathname, method = req.method;
+    if (!user) return error(res, 401, 'Log in to continue');
     if (p === '/api/cli/status' && method === 'GET') return send(res, 200, await statusFor(user));
     if (p === '/api/cli/pair' && method === 'POST') {
       if (!canRun(user) && user.role !== 'owner') return error(res, 403, 'Execution access not approved');

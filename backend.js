@@ -11,6 +11,11 @@
  // Back-compat for pages expecting the older helper name.
  window.WROSECODE_BACKEND=chosen;
  window.WROSECODE_API=p=>window.WROSECODE_API_BASE+p;
+ // Keep authentication and console pages first-party so Safari can persist
+ // the backend's session cookie when the marketing site is hosted on Pages.
+ if(chosen&&chosen!==location.origin&&/\/(?:login|console)\.html$/.test(location.pathname)){
+   location.replace(chosen+location.pathname+location.search+location.hash);return;
+ }
  // Static Pages has no auth endpoint; open full authenticated console at backend.
  if(chosen&&chosen!==location.origin){
    document.querySelectorAll('a[href="login.html"],a[href="console.html"]').forEach(a=>{

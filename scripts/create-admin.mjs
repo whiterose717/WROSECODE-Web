@@ -12,4 +12,4 @@ db.exec("CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE 
 const salt=crypto.randomBytes(16);const hash='scrypt$'+salt.toString('hex')+'$'+crypto.scryptSync(pass,salt,64).toString('hex');
 const old=db.prepare('SELECT id,role FROM users WHERE email=?').get(email);
 if(old){db.prepare("UPDATE users SET pass_hash=?,role='owner',approved=1 WHERE id=?").run(hash,old.id)}else db.prepare('INSERT INTO users VALUES(?,?,?,?,?,?)').run(crypto.randomUUID(),email,hash,'owner',1,Date.now());
-console.log(`Admin initialized for ${email}. Keep credentials private.`);db.close();
+console.log('WROSECODE owner account created or updated. Keep credentials private.');db.close();

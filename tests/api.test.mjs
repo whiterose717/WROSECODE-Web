@@ -14,9 +14,9 @@ async function api(p,{method='GET',body,raw=false,auth=true}={}){const headers={
 async function ready(){for(let i=0;i<80;i++){try{const r=await fetch(base+'/api/health');if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,60))}throw Error('Server failed to start')}
 async function until(id){for(let i=0;i<100;i++){const r=await fetch(base+`/api/jobs/${id}/events`,{headers:{cookie:authCookie}});const text=await r.text();if(text.includes('event: done'))return text;await new Promise(r=>setTimeout(r,40))}throw Error('Job did not finish')}
 test('live fake CLI bridge, auth, upload, SSE, redaction, candidate classification, and scope',async t=>{
-const p=await port();base=`http://127.0.0.1:${p}`;const env={...process.env,PORT:String(p),PUBLIC_BASE_URL:base,HOST:'127.0.0.1',DATA_DIR:temp,BRIDGE_MODE:'cli',WROSECODE_BIN:path.join(ROOT,'tests/fake-cli.mjs'),SIGNUP_MODE:'open',MAX_CONCURRENT_JOBS:'1',ADMIN_EMAIL:'owner@example.com',ADMIN_PASSWORD:'a_very_long_testing_password'};
+const p=await port();base=`http://127.0.0.1:${p}`;const env={...process.env,PORT:String(p),PUBLIC_BASE_URL:base,HOST:'127.0.0.1',DATA_DIR:temp,WROSE_TOKEN_FILE:path.join(temp,'missing-token'),BRIDGE_MODE:'cli',WROSECODE_BIN:path.join(ROOT,'tests/fake-cli.mjs'),SIGNUP_MODE:'open',MAX_CONCURRENT_JOBS:'1',ADMIN_EMAIL:'owner@example.com',ADMIN_PASSWORD:'a_very_long_testing_password'};
 await exec(path.join(ROOT,'scripts/create-admin.mjs'),[],env);child=spawn(process.execPath,['server/server.mjs'],{cwd:ROOT,env,stdio:'ignore'});t.after(()=>{child.kill();rmSync(temp,{recursive:true,force:true})});await ready();
-let result=await api('/api/health',{auth:false});assert.equal(result.j.readyForLiveAgent,true);
+let result=await api('/api/health',{auth:false});assert.equal(result.j.readyForLiveAgent,false);assert.equal(result.j.readyForSharedHostCli,false);assert.equal(result.j.sharedHostCliConfigured,true);assert.equal(result.j.perUserDeviceBridgeAvailable,true);
 let hidden=await fetch(base+'/server/server.mjs');assert.equal(hidden.status,404);
 hidden=await fetch(base+'/.env.example');assert.equal(hidden.status,404);
 hidden=await fetch(base+'/data/wrosecode-web.sqlite');assert.equal(hidden.status,404);
