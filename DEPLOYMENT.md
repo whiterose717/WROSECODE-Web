@@ -1,119 +1,71 @@
-# WROSECODE Web Console — Deployment
+> **New:** [NATIVE_BRIDGE_V2.md](NATIVE_BRIDGE_V2.md) describes the upgraded cross-platform companion, remote tools and the intentionally limited terminal access.
 
-## Architecture (production)
+# WROSECODE — Secure Web Console deployment
 
-```
-iPhone / Desktop browser (HTTPS)
-  → https://wrosecode-web.pages.dev  (Cloudflare Pages, static only)
-  → https://<your-backend>           (Node server/server.mjs, authenticated API)
-  → http://127.0.0.1:4076            (Rust WROSECODE server, loopback only)
-```
+This ZIP is a **self-hosted Node web console plus a Cloudflare Pages-compatible static frontend**. Cloudflare Pages cannot run `server/server.mjs` or store private login sessions. Production auth, agent jobs and encrypted API provider profiles require a **reachable Node backend**.
 
-- Cloudflare Pages serves `dist/` built by `npm run build`. It does **not** run Node.
-- The Node backend serves the same frontend **and** `/api/*` when run on Kali.
-  From Pages, the frontend calls the backend origin configured in `backend.js`
-  (`window.WROSECODE_BACKEND` or `localStorage.wrose_backend`) with
-  `credentials: include` (CORS + `SameSite=None; Secure` cookies).
-- The Rust server is **loopback-only**. Never expose port 4076 publicly.
-  Remote access is via Cloudflare Tunnel or Tailscale Serve in front of the
-  Node backend (port 8787), not the Rust port.
-
-## Kali startup (exact)
+## 1. Local setup (Node >= 22.13)
 
 ```bash
-cd /home/kali/Desktop/myweb/WROSECODE-Web-Console
-node --version            # >=22.13
-wrosecode --version
-wrosecode providers list
-cp .env.example .env      # edit .env (see below)
-
-# Rust agent API (terminal 1)
-wrosecode server --hostname 127.0.0.1 --port 4076
-
-# Node backend (terminal 2)
+cd WROSECODE-Web-Console
+cp .env.example .env
+chmod 600 .env
+openssl rand -hex 32           # copy result to PROVIDER_ENCRYPTION_KEY in .env; do not share
+# Edit .env: SIGNUP_MODE=open, BRIDGE_MODE=disabled, and your OAuth credentials only after rotation
 node --env-file=.env server/server.mjs
-# → http://127.0.0.1:8787/login.html
 ```
 
-Minimal `.env` for local use:
+Open `http://127.0.0.1:8787/login.html`. Register a new account, or create an owner with the existing `scripts/create-admin.mjs` using `ADMIN_EMAIL` and `ADMIN_PASSWORD`. `data/wrosecode-web.sqlite` holds the user/session/agent metadata and **encrypted** provider API keys. Back up the DB and encryption key securely; loss of the key makes stored API keys unrecoverable.
 
-```dotenv
-HOST=127.0.0.1
-PORT=8787
-PUBLIC_BASE_URL=http://127.0.0.1:8787
-BRIDGE_MODE=cli
-WROSE_URL=http://127.0.0.1:4076
-SIGNUP_MODE=closed
-```
+By default, unapproved members can pair **their own CLI companion** and use their own AI API profiles. `ALLOW_MEMBER_JOBS=0` and `I_ACCEPT_SHARED_CLI_RISK=no` prevent members from running the **server owner's shared local CLI**. Do NOT set these to unsafe values to work around pairing errors.
 
-## Remote access — option A: Tailscale Serve (private, recommended)
+## 2. Production HTTPS + iPhone access
+
+Recommended for Safari and maximum cookie reliability:
+
+1. Configure a stable **custom domain** in Cloudflare (example `console.example.com`), with Cloudflare Tunnel forwarding HTTPS to Node `127.0.0.1:8787`. The tunnel connector runs on the Node host. Keep Node bound to loopback and firewall it. The website files are also served by the Node backend on that hostname, so authentication is **same-origin**.
+2. In `.env`, set `PUBLIC_BASE_URL=https://console.example.com`, `FRONTEND_URL=https://console.example.com`.
+3. Restart the Node service. Visit `https://console.example.com/login.html` in Safari; test real login/logout.
+4. Keep `https://wrosecode-web.pages.dev` as the marketing/public static frontend. To make its navigation open the live secure console, insert `window.WROSECODE_BACKEND = 'https://console.example.com';` at the TOP of `backend.js`, then rebuild and redeploy. **Never put tokens, client secrets or API keys in `backend.js`.**
+
+Avoid cross-site cookies for production iPhone login: browsers including Safari block third-party cookies even when SameSite=None. For this reason, prefer the full Node-served console on the backend hostname over cross-origin `/api` from `pages.dev`.
+
+Private access alternative: Tailscale Serve over an authenticated tailnet with HTTPS, if only your own devices need access. Public service for many unrelated users needs HTTPS, abuse protection, backups, audit logging, resource quotas, and independent penetration testing before launch.
+
+**Do not expose port 4076 or a generic SSH/raw-shell proxy.** The private companion uses outbound HTTPS and a narrowly scoped device token. Root execution is strongly discouraged.
+
+## 3. Pages frontend build
 
 ```bash
-sudo tailscale up
-# .env:
-HOST=127.0.0.1
-PORT=8787
-PUBLIC_BASE_URL=https://your-kali.your-tailnet.ts.net
-FRONTEND_URL=https://wrosecode-web.pages.dev
-BRIDGE_MODE=cli
-node --env-file=.env server/server.mjs
-# second terminal:
-tailscale serve --bg 8787
-tailscale serve status
+npm run build
+npm test
 ```
 
-Copy the exact HTTPS hostname into `PUBLIC_BASE_URL` and restart Node.
-Do **not** use `tailscale funnel` (public) for the execution bridge.
+Cloudflare Pages settings: Git repository root `WROSECODE-Web-Console/` if nested in a larger repo, otherwise `/`; framework `None`; build command `npm run build`; output directory `dist`. Deployment is not proven until Cloudflare reports success, and its domain remains frontend-only. The ZIP includes a prebuilt `dist` that contains only public allowlisted assets.
 
-## Remote access — option B: Cloudflare Tunnel (public HTTPS backend)
+## 4. OAuth
+
+See `OAUTH_SETUP.md`. Redirect URIs must point to `PUBLIC_BASE_URL` (the Node hostname), not Pages. Google/GitHub credentials supplied in a chat or accidentally published must be revoked and regenerated **before** use. Do not upload `.env` to GitHub or into this ZIP.
+
+## 5. Per-user CLI pairing
+
+See `CLI_PAIRING.md`. Users register, open `Connect CLI`, generate a one-time 10-minute code, and run `scripts/device-agent.mjs` on their own CLI machine with HTTPS backend and code. The companion authenticates via a revocable device token and runs the *installed* `wrosecode` binary in a per-job workspace. No `wrosecode server --hostname` subcommand is required for this mode. Verify the installed binary actually supports the required agent workflow before promising tool execution.
+
+## 6. BYOK providers
+
+Set `PROVIDER_ENCRYPTION_KEY` to a stable random 32-byte hex key. In AI Providers, each user can save an encrypted API key for OpenAI API, DeepSeek API, OpenRouter, Groq or, if the owner explicitly sets `ALLOW_CUSTOM_PROVIDERS=1`, custom public HTTPS OpenAI-compatible endpoints. Models are discovered via the provider's `/models` endpoint; set a model ID before sending a direct-API chat message. API providers cost money under the user's own provider terms.
+
+**ChatGPT website subscriptions and ChatGPT OAuth are not interchangeable with OpenAI API credentials.** Do not solicit browser session tokens or cookie exports. Official user-delegated ChatGPT sign-in to arbitrary apps is not implemented here.
+
+## 7. Operational checks
 
 ```bash
-cloudflared tunnel login
-cloudflared tunnel create wrose-bridge
-# route wrose-bridge.example.com → http://127.0.0.1:8787 in Cloudflare dashboard
-cloudflared tunnel run wrose-bridge
+node --version
+npm test
+npm run build
+curl -i http://127.0.0.1:8787/api/health
+curl -i http://127.0.0.1:8787/api/config
+# From iPhone network, verify PUBLIC_BASE_URL and log in over HTTPS
 ```
 
-`.env`:
-
-```dotenv
-HOST=127.0.0.1
-PORT=8787
-PUBLIC_BASE_URL=https://wrose-bridge.example.com
-FRONTEND_URL=https://wrosecode-web.pages.dev
-BRIDGE_MODE=cli
-```
-
-`PUBLIC_BASE_URL` must be `https://` so cookies are `Secure` and OAuth
-redirects match the registered URIs.
-
-## Cloudflare Pages settings
-
-- Project: `wrosecode-web` → `https://wrosecode-web.pages.dev`
-- Root: `WROSECODE-Web-Console/` (the plain-HTML console, not the Astro site)
-- Build command: `npm run build`
-- Output directory: `dist`
-- No environment secrets in Pages. OAuth secrets stay in Node `.env` only.
-- `dist/` is gitignored; Pages builds from source on every push to `main`.
-
-To point Pages at the backend, edit `backend.js` before pushing:
-
-```js
-window.WROSECODE_BACKEND = "https://wrose-bridge.example.com";
-```
-
-or leave same-origin (Kali-served UI) and set a per-browser override in
-DevTools: `localStorage.wrose_backend="https://..."`.
-
-## Health checks
-
-```bash
-curl -s http://127.0.0.1:8787/api/health | head -c 1000; echo
-curl -s http://127.0.0.1:8787/api/config | head -c 1000; echo
-curl -s http://127.0.0.1:4076/health; echo
-TOKEN=$(cat ~/.wrosecode/server.token)
-curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4076/v1/status | head -c 500; echo
-```
-
-`wrosecode-web.pages.dev` serves static files only: `/api/*` there is
-expected to 404. The frontend must use the backend origin.
+A working **pairing protocol** was exercised with simulated device HTTP requests in tests. Real OAuth, actual provider completions, deployment, and a real WROSECODE binary on your Kali machine were **not** available in the packaging environment and MUST be tested after installing your own credentials and CLI.

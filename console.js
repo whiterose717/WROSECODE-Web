@@ -1,242 +1,91 @@
-(() => {'use strict';
-const $ = s => document.querySelector(s); const $$ = s => Array.from(document.querySelectorAll(s));
-const api = (p) => (window.WROSECODE_API ? window.WROSECODE_API(p) : p);
-let current = { chat: null, ctf: null }; let me = null, bridge = 'disabled'; const streams = {};
-let cliState = { reachable: false, authorized: false, busy: false, paired: false };
-function elt(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e }
-async function apiJson(url, opts = {}) {
-  const r = await fetch(api(url), { credentials: 'include', ...opts });
-  const ct = r.headers.get('content-type') || '';
-  const j = ct.includes('json') ? await r.json() : { error: await r.text() };
-  if (!r.ok) throw Error((j && j.error) || `Request failed (${r.status})`);
-  return j;
+(()=>{'use strict';
+const $=s=>document.querySelector(s);const $$=s=>Array.from(document.querySelectorAll(s));let current={chat:null,ctf:null,tool:null};let me=null,bridge='disabled',sessionId='';const streams={};
+function elt(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
+async function api(url,opts={}){let r=await fetch(window.wroseApiPath?window.wroseApiPath(url):url,{credentials:'include',...opts});let j=await r.json();if(!r.ok)throw Error(j.error||`Request failed (${r.status})`);return j}
+const post=(url,data)=>api(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
+function pickView(view){$$('.side-link').forEach(b=>b.classList.toggle('selected',b.dataset.view===view));$$('.view-pane').forEach(b=>b.classList.toggle('is-active',b.id===`view-${view}`));$('#breadcrumb').textContent={chat:'AGENT CHAT',ctf:'CTF OPERATIONS',history:'JOB HISTORY',devices:'CONNECT CLI',terminal:'REMOTE TOOLS',providers:'AI PROVIDERS',admin:'ACCESS CONTROL'}[view];$('#sidebar').classList.remove('open');if(view==='history')refreshJobs();if(view==='devices'||view==='terminal')refreshDevices();if(view==='devices')refreshRust();if(view==='providers')refreshProviders();if(view==='admin')refreshUsers()}
+function line(target,kind,text){const item=elt('div',`message-line ${kind}`);const tag=elt('span','message-tag',kind==='user'?'YOU':kind==='system'?'SYSTEM':kind==='error'?'ERROR':'WROSECODE');item.append(tag,elt('div','message-text',text));target.append(item);target.scrollTop=target.scrollHeight}
+function stream(jobId,kind){if(streams[kind])streams[kind].close();const source=new EventSource(window.wroseApiPath?window.wroseApiPath(`/api/jobs/${jobId}/events`):`/api/jobs/${jobId}/events`,{withCredentials:true});streams[kind]=source;const feed=kind==='ctf'?$('#ctfFeed'):kind==='tool'?$('#toolFeed'):$('#transcript');function render(data,type){if(type==='session'){sessionId=data.id;refreshSessions();}if(type==='log')line(feed,'agent',data.text||'');if(type==='permission')line(feed,'system',`LOCAL APPROVAL ${String(data.decision).toUpperCase()}: ${data.summary||''}`);if(type==='candidate'){const c=elt('div','candidate');c.append(elt('span','candidate-tag','UNVERIFIED'),elt('code','',data.value||''));$('#candidates').prepend(c);$('#candidateCount').textContent=String(Number($('#candidateCount').textContent)+1)}if(type==='status'){if(kind==='tool'){$('#toolStatus').textContent=data.status.toUpperCase()}else if(kind==='ctf'){$('#ctfStatus').textContent=data.status.toUpperCase();$('#ctfAnalysis').textContent=data.status.toUpperCase()}else $('#chatSubstatus').textContent=data.status.toUpperCase()}if(type==='done'){if(kind==='tool'){$('#toolStatus').textContent=data.status.toUpperCase();$('#cancelTool').hidden=true;$('#runTool').disabled=false}else if(kind==='ctf'){$('#ctfStatus').textContent=data.status.toUpperCase();$('#cancelCtf').hidden=true;$('#startCtf').disabled=false}else{$('#chatSubstatus').textContent=data.status.toUpperCase();$('#cancelChat').hidden=true;$('#sendChat').disabled=false}line(feed,'system',`Execution ${data.status} · exit ${data.exitCode}${kind==='ctf'?' · flag candidates unverified':''}`);source.close();current[kind]=null;refreshJobs()}}
+for(const event of ['log','candidate','status','done','session','permission'])source.addEventListener(event,e=>{try{render(JSON.parse(e.data),event)}catch{}});source.onerror=()=>{if(current[kind]){if(kind==='tool')$('#toolStatus').textContent='RECONNECTING';else if(kind==='ctf')$('#ctfStatus').textContent='RECONNECTING';else $('#chatSubstatus').textContent='RECONNECTING';}/* EventSource retries automatically and sends Last-Event-ID. */}
 }
-const post = (url, data) => apiJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
-function pickView(view) {
-  $$('.side-link').forEach(b => b.classList.toggle('selected', b.dataset.view === view));
-  $$('.view-pane').forEach(b => b.classList.toggle('is-active', b.id === `view-${view}`));
-  $('#breadcrumb').textContent = { chat: 'AGENT CHAT', ctf: 'CTF OPERATIONS', cli: 'CONNECT CLI', history: 'JOB HISTORY', providers: 'AI PROVIDERS', admin: 'ACCESS CONTROL' }[view];
-  $('#sidebar').classList.remove('open');
-  if (view === 'history') refreshJobs();
-  if (view === 'providers') refreshProviders();
-  if (view === 'admin') refreshUsers();
-  if (view === 'cli') refreshCli();
+async function runChat(e){e.preventDefault();const value=$('#prompt').value.trim();if(!value||current.chat)return;$('#transcript').querySelector('.empty-transcript')?.remove();line($('#transcript'),'user',value);$('#prompt').value='';$('#sendChat').disabled=true;$('#chatSubstatus').textContent='QUEUING';try{const response=await post('/api/jobs',{kind:'chat',prompt:value,provider:$('#provider').value.trim(),model:$('#model').value.trim(),providerId:$('#aiProfile').value,deviceId:$('#aiProfile').value?undefined:($('#chatDevice').value||undefined),sessionId:$('#aiSession').value||sessionId});current.chat=response.id;$('#cancelChat').hidden=false;stream(response.id,'chat')}catch(err){line($('#transcript'),'error',err.message);$('#sendChat').disabled=false}}
+async function runCtf(){if(current.ctf)return;const file=$('#artifactInput').files[0];if(!file){alert('Select a challenge file first.');return}if(!$('#authorizedScope').checked){alert('Confirm authorization to analyze this challenge.');return}if(file.size>16*1024*1024){alert('Maximum artifact size is 16 MiB.');return}$('#startCtf').disabled=true;$('#ctfFeed').replaceChildren();$('#candidates').replaceChildren(elt('div','candidate-note','Flags remain UNVERIFIED until independently confirmed by the challenge platform.'));$('#candidateCount').textContent='0';$('#ctfStatus').textContent='UPLOADING';try{const u=await api('/api/artifacts?filename='+encodeURIComponent(file.name),{method:'POST',headers:{'content-type':'application/octet-stream'},body:file});line($('#ctfFeed'),'system',`Artifact saved: ${u.name} / ${u.size} bytes / sha256 ${u.sha256.slice(0,16)}…`);const j=await post('/api/jobs',{kind:'ctf',artifactId:u.id,prompt:$('#ctfObjective').value.trim(),provider:$('#ctfProvider').value.trim(),model:$('#ctfModel').value.trim(),deviceId:$('#ctfDevice').value||undefined});current.ctf=j.id;$('#cancelCtf').hidden=false;stream(j.id,'ctf')}catch(e){line($('#ctfFeed'),'error',e.message);$('#startCtf').disabled=false}}
+async function runTool(e){
+ e.preventDefault();if(current.tool)return;
+ const op=$('#toolOperation').value;
+ const request=op==='terminal'?{op,command:$('#toolCommand').value.trim()}:{op,path:$('#toolPath').value.trim()||'.',...(op==='write'?{content:$('#toolContent').value}:{})};
+ $('#toolFeed').replaceChildren();$('#runTool').disabled=true;$('#toolStatus').textContent='QUEUING';
+ try{const result=await post('/api/jobs',{kind:op==='terminal'?'terminal':'file',deviceId:$('#toolDevice').value||undefined,request});current.tool=result.id;$('#cancelTool').hidden=false;stream(result.id,'tool')}
+ catch(e){line($('#toolFeed'),'error',e.message);$('#runTool').disabled=false;$('#toolStatus').textContent='FAILED'}
 }
-function line(target, kind, text) { const item = elt('div', `message-line ${kind}`); const tag = elt('span', 'message-tag', kind === 'user' ? 'YOU' : kind === 'system' ? 'SYSTEM' : kind === 'error' ? 'ERROR' : 'WROSECODE'); item.append(tag, elt('div', 'message-text', text)); target.append(item); target.scrollTop = target.scrollHeight }
-// Legacy job SSE (spawn bridge)
-function stream(jobId, kind) {
-  if (streams[kind]) try { streams[kind].close() } catch {}
-  const source = new EventSource(api(`/api/jobs/${jobId}/events`)); streams[kind] = source;
-  const feed = kind === 'ctf' ? $('#ctfFeed') : $('#transcript');
-  function render(data, type) {
-    if (type === 'log') line(feed, 'agent', data.text || '');
-    if (type === 'candidate') { const c = elt('div', 'candidate'); c.append(elt('span', 'candidate-tag', 'UNVERIFIED'), elt('code', '', data.value || '')); $('#candidates').prepend(c); $('#candidateCount').textContent = String(Number($('#candidateCount').textContent) + 1) }
-    if (type === 'status') { if (kind === 'ctf') { $('#ctfStatus').textContent = data.status.toUpperCase(); $('#ctfAnalysis').textContent = data.status.toUpperCase() } else $('#chatSubstatus').textContent = data.status.toUpperCase() }
-    if (type === 'done') { if (kind === 'ctf') { $('#ctfStatus').textContent = data.status.toUpperCase(); $('#cancelCtf').hidden = true; $('#startCtf').disabled = false } else { $('#chatSubstatus').textContent = data.status.toUpperCase(); $('#cancelChat').hidden = true; $('#sendChat').disabled = false } line(feed, 'system', `Execution ${data.status} · exit ${data.exitCode} · verification: not independently confirmed`); source.close(); current[kind] = null; refreshJobs() }
+async function sendInput(){if(!current.chat)return alert('Start a CLI chat job first.');const input=$('#chatInput'),text=input.value.trim();if(!text)return;try{await post(`/api/jobs/${current.chat}/input`,{text});input.value='';line($('#transcript'),'user',`[stdin] ${text}`)}catch(e){line($('#transcript'),'error',e.message)}}
+async function cancel(kind){const job=current[kind];if(!job)return;try{await post(`/api/jobs/${job}/cancel`,{});if(kind==='ctf')$('#ctfStatus').textContent='CANCELLING';else if(kind==='tool')$('#toolStatus').textContent='CANCELLING';else $('#chatSubstatus').textContent='CANCELLING'}catch(e){line(kind==='ctf'?$('#ctfFeed'):$('#transcript'),'error',e.message)}}
+async function refreshJobs(){try{const data=await api('/api/jobs');const list=$('#historyList'),recent=$('#recentJobs');list.replaceChildren();recent.replaceChildren();if(!data.jobs.length){list.append(elt('p','quiet-placeholder','No jobs yet.'));recent.append(elt('p','quiet-placeholder','No executions yet.'));return}for(const j of data.jobs){const row=elt('div','history-item');row.append(elt('span','history-kind',j.kind==='ctf'?'⚑ CTF':'⌘ CHAT'),elt('span','history-id',j.id.slice(0,8)),elt('span','history-status '+j.status,j.status.toUpperCase()),elt('small','',new Date(j.created_at).toLocaleString()));list.append(row)}for(const j of data.jobs.slice(0,5)){const r=elt('div','recent-item');r.append(elt('span','',j.kind==='ctf'?'⚑':'⌘'),elt('div','',j.kind==='ctf'?'CTF ANALYSIS':'AGENT TASK'),elt('small','',j.status.toUpperCase()));recent.append(r)}}catch(e){$('#historyList').textContent=e.message}}
+async function refreshProviders(){try{const r=await api('/api/providers');$('#providerOutput').textContent=r.raw||'No provider output was returned. Check wrosecode providers list on Kali.'}catch(e){$('#providerOutput').textContent=e.message}}
+async function refreshDevices(){
+ try{
+  const d=await api('/api/devices'),el=$('#devicesList');el.replaceChildren();for(const id of ['chatDevice','ctfDevice','toolDevice']){const sel=$('#'+id),chosen=sel.value;sel.replaceChildren(new Option(id==='toolDevice'?'Choose your device':'Latest online device',''));for(const dev of d.devices.filter(x=>x.online))sel.add(new Option(`${dev.name} · ${dev.platform||'unknown OS'} · ${dev.cli_version||'CLI unknown'}`,dev.id));if(d.devices.some(x=>x.id===chosen&&x.online))sel.value=chosen}
+  if(!d.devices.length)el.append(elt('div','candidate-note','No CLI devices paired yet. Create a one-time code and start the companion on your Kali machine.'));
+  for(const device of d.devices){
+   const row=elt('div','history-item');row.append(elt('strong','',device.name),elt('span','history-status',device.revoked?'REVOKED':device.online?'ONLINE':'OFFLINE'),elt('small','',`${device.platform||'Platform unknown'} · ${device.cli_version||'CLI unreported'} · Last seen ${new Date(device.last_seen).toLocaleString()}`));
+   if(!device.revoked){const b=elt('button','tiny-button','REVOKE');b.addEventListener('click',async()=>{if(!confirm('Revoke this device token and stop its pending jobs?'))return;try{await post(`/api/devices/${device.id}/revoke`,{});refreshDevices();refreshPermissions()}catch(e){alert(e.message)}});row.append(b)}el.append(row)
   }
-  for (const event of ['log', 'candidate', 'status', 'done']) source.addEventListener(event, e => { try { render(JSON.parse(e.data), event) } catch {} });
-  source.onerror = () => { source.close(); if (current[kind]) line(feed, 'error', 'Live connection interrupted. Check job history for recorded output.'); if (kind === 'ctf') { $('#cancelCtf').hidden = true; $('#startCtf').disabled = false } else { $('#cancelChat').hidden = true; $('#sendChat').disabled = false } current[kind] = null };
+ }catch(e){$('#devicesList').textContent=e.message}
 }
-// Real Rust streaming chat via /api/cli/chat/stream (SSE POST)
-async function runRustChat(value) {
-  const feed = $('#transcript');
-  $('#sendChat').disabled = true; $('#chatSubstatus').textContent = 'CONNECTING';
-  try {
-    const r = await fetch(api('/api/cli/chat/stream'), {
-      method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ prompt: value, provider: $('#provider').value.trim() || undefined, model: $('#model').value.trim() || undefined })
-    });
-    if (r.status === 401) throw Error('Unauthorized — open Connect CLI and pair this device.');
-    if (r.status === 503) throw Error('Agent busy — a chat/CTF turn holds the agent. Retry shortly.');
-    if (r.status === 403) throw Error('Execution access not approved.');
-    if (!r.ok || !r.body) throw Error(`Chat failed (${r.status})`);
-    $('#chatSubstatus').textContent = 'STREAMING';
-    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ''; let acc = elt('div', 'message-line agent');
-    acc.append(elt('span', 'message-tag', 'WROSECODE'), elt('div', 'message-text', ''));
-    feed.append(acc); feed.scrollTop = feed.scrollHeight;
-    const txt = () => acc.querySelector('.message-text');
-    while (true) {
-      const { done, value: chunk } = await reader.read();
-      if (done) break;
-      buf += dec.decode(chunk, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf('\n\n')) !== -1) {
-        const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
-        const mEv = frame.match(/^event:\s*(\S+)/m); const mData = frame.match(/^data:\s*([\s\S]*)/m);
-        if (!mEv) continue;
-        const ev = mEv[1]; let data = {}; try { data = JSON.parse((mData ? mData[1] : '{}').split('\n').filter(l => l.startsWith('data:') ? false : true).join('\n')) } catch {}
-        if (ev === 'chat.delta' && data.delta) { txt().textContent += data.delta; feed.scrollTop = feed.scrollHeight }
-        else if (ev === 'chat.started') { $('#chatSubstatus').textContent = 'RUNNING' }
-        else if (ev === 'thinking.status' && data.status) { $('#chatSubstatus').textContent = String(data.status).slice(0, 60).toUpperCase() }
-        else if (ev === 'chat.completed') { if (data.answer && !txt().textContent) txt().textContent = data.answer; $('#chatSubstatus').textContent = 'COMPLETED' }
-        else if (ev === 'chat.failed') { line(feed, 'error', data.error || 'Chat failed'); $('#chatSubstatus').textContent = 'FAILED' }
-      }
-    }
-    if (!txt().textContent) txt().textContent = '(empty response)';
-    $('#chatSubstatus').textContent = 'COMPLETED';
-  } catch (err) { line(feed, 'error', err.message); $('#chatSubstatus').textContent = 'ERROR' }
-  finally { $('#sendChat').disabled = false }
+async function newPair(){
+ const el=$('#pairingInstructions');el.replaceChildren();try{
+  const r=await post('/api/devices/pair',{});
+  el.append(elt('p','','This one-time code expires after 10 minutes. Never publish it or your device token.'));
+  el.append(elt('code','',r.code));
+  const host=window.WROSECODE_API_BASE||location.origin;
+  const line=`node scripts/device-agent.mjs --backend ${host} --code ${r.code}`;
+  el.append(elt('pre','provider-output',line));
+  const copy=elt('button','tiny-button','COPY COMMAND');copy.type='button';copy.onclick=()=>navigator.clipboard?.writeText(line);el.append(copy);
+  el.append(elt('p','','Download this project ZIP onto your own CLI machine and run the command from its project folder, using an unprivileged account. Keep that terminal running.'));
+ }catch(e){el.textContent=e.message}
 }
-async function runChat(e) {
-  e.preventDefault();
-  const value = $('#prompt').value.trim(); if (!value) return;
-  $('#transcript').querySelector('.empty-transcript')?.remove();
-  line($('#transcript'), 'user', value); $('#prompt').value = '';
-  // Prefer real Rust bridge when paired; fall back to legacy job queue otherwise.
-  if (cliState.reachable && cliState.authorized && cliState.paired) return runRustChat(value);
-  if (current.chat) return;
-  $('#sendChat').disabled = true; $('#chatSubstatus').textContent = 'QUEUING';
-  try { const response = await post('/api/jobs', { kind: 'chat', prompt: value, provider: $('#provider').value.trim(), model: $('#model').value.trim() }); current.chat = response.id; $('#cancelChat').hidden = false; stream(response.id, 'chat') }
-  catch (err) { line($('#transcript'), 'error', err.message); $('#sendChat').disabled = false }
-}
-async function runCtf() {
-  if (current.ctf) return;
-  const file = $('#artifactInput').files[0];
-  if (!file) { alert('Select a challenge file first.'); return }
-  if (!$('#authorizedScope').checked) { alert('Confirm authorization to analyze this challenge.'); return }
-  if (file.size > 16 * 1024 * 1024) { alert('Maximum artifact size is 16 MiB.'); return }
-  $('#startCtf').disabled = true; $('#ctfFeed').replaceChildren();
-  $('#candidates').replaceChildren(elt('div', 'candidate-note', 'Flags remain UNVERIFIED until independently confirmed by the challenge platform.'));
-  $('#candidateCount').textContent = '0'; $('#ctfStatus').textContent = 'UPLOADING';
-  try {
-    const u = await apiJson('/api/artifacts?filename=' + encodeURIComponent(file.name), { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
-    line($('#ctfFeed'), 'system', `Artifact saved: ${u.name} / ${u.size} bytes / sha256 ${u.sha256.slice(0, 16)}…`);
-    const j = await post('/api/jobs', { kind: 'ctf', artifactId: u.id });
-    current.ctf = j.id; $('#cancelCtf').hidden = false; stream(j.id, 'ctf');
-  } catch (e) { line($('#ctfFeed'), 'error', e.message); $('#startCtf').disabled = false }
-}
-async function cancel(kind) {
-  const job = current[kind]; if (!job) return;
-  try { await post(`/api/jobs/${job}/cancel`, {}); if (kind === 'ctf') $('#ctfStatus').textContent = 'CANCELLING'; else $('#chatSubstatus').textContent = 'CANCELLING' }
-  catch (e) { line(kind === 'ctf' ? $('#ctfFeed') : $('#transcript'), 'error', e.message) }
-}
-async function refreshJobs() {
-  try {
-    const data = await apiJson('/api/jobs'); const list = $('#historyList'), recent = $('#recentJobs');
-    list.replaceChildren(); recent.replaceChildren();
-    if (!data.jobs.length) { list.append(elt('p', 'quiet-placeholder', 'No jobs yet.')); recent.append(elt('p', 'quiet-placeholder', 'No executions yet.')); return }
-    for (const j of data.jobs) { const row = elt('div', 'history-item'); row.append(elt('span', 'history-kind', j.kind === 'ctf' ? '⚑ CTF' : '⌘ CHAT'), elt('span', 'history-id', j.id.slice(0, 8)), elt('span', 'history-status ' + j.status, j.status.toUpperCase()), elt('small', '', new Date(j.created_at).toLocaleString())); list.append(row) }
-    for (const j of data.jobs.slice(0, 5)) { const r = elt('div', 'recent-item'); r.append(elt('span', '', j.kind === 'ctf' ? '⚑' : '⌘'), elt('div', '', j.kind === 'ctf' ? 'CTF ANALYSIS' : 'AGENT TASK'), elt('small', '', j.status.toUpperCase())); recent.append(r) }
-  } catch (e) { $('#historyList').textContent = e.message }
-}
-async function refreshProviders() {
-  try {
-    // Prefer real Rust providers; fall back to legacy spawn bridge.
-    try {
-      const r = await apiJson('/api/cli/providers');
-      const names = (r.providers || []).map(p => `${p.id} — ${p.status || ''}${p.model ? ' / ' + p.model : ''}`).join('\n');
-      $('#providerOutput').textContent = names || 'No providers returned.';
-      const dl = $('#providersList'); dl.replaceChildren();
-      for (const p of (r.providers || [])) { const o = document.createElement('option'); o.value = p.id; dl.append(o) }
-      return;
-    } catch (e) { if (!/Unauthorized|approved|Log in/.test(e.message)) throw e; }
-    const r = await apiJson('/api/providers');
-    $('#providerOutput').textContent = r.raw || 'No provider output was returned. Check wrosecode providers list on Kali.';
-  } catch (e) { $('#providerOutput').textContent = e.message }
-}
-async function refreshCli() {
-  const box = $('#cliStatus'); if (!box) return;
-  box.textContent = 'Checking Rust server...';
-  try {
-    const s = await apiJson('/api/cli/status');
-    cliState = { reachable: !!s.reachable, authorized: !!s.authorized, busy: !!s.busy, paired: !!s.paired };
-    const lines = [
-      `REACHABLE: ${s.reachable ? 'YES' : 'NO'}`,
-      `AUTHORIZED: ${s.authorized ? 'YES' : 'NO'}`,
-      `PAIRED: ${s.paired ? 'YES (' + (s.device_id || '') + ')' : 'NO'}`,
-      s.busy ? 'STATUS: BUSY — agent turn in progress' : `STATUS: ${s.provider ? s.provider + ' / ' + (s.model || '') : (s.error || 'unknown')}`,
-      `PAIRED DEVICES: ${s.paired_devices ?? '?'}`,
-      `PENDING CODES: ${s.pending_codes ?? '?'}`,
-    ];
-    box.textContent = lines.join('\n');
-    updateEngine(s);
-  } catch (e) { box.textContent = 'CLI status failed: ' + e.message }
-}
-async function pairCli() {
-  const code = $('#pairCode').value.trim(); const name = $('#pairName').value.trim() || 'Browser device';
-  $('#pairMsg').textContent = 'Pairing...';
-  try {
-    const r = await post('/api/cli/pair', { code, device_name: name });
-    $('#pairMsg').textContent = 'Paired: ' + r.device_id;
-    $('#pairCode').value = '';
-    await refreshCli();
-  } catch (e) { $('#pairMsg').textContent = e.message }
-}
-async function revokeCli() {
-  $('#pairMsg').textContent = 'Revoking...';
-  try { await post('/api/cli/revoke', {}); $('#pairMsg').textContent = 'Device revoked.'; await refreshCli() }
-  catch (e) { $('#pairMsg').textContent = e.message }
-}
-async function refreshUsers() {
-  try {
-    const d = await apiJson('/api/admin/users'); const list = $('#usersList'); list.replaceChildren();
-    for (const u of d.users) {
-      const row = elt('div', 'history-item');
-      row.append(elt('strong', 'history-email', u.email), elt('span', 'history-status', u.role.toUpperCase()), elt('span', '', u.approved ? 'APPROVED' : 'PENDING'));
-      if (u.role !== 'owner') { const b = elt('button', 'tiny-button', u.approved ? 'REVOKE' : 'APPROVE'); b.addEventListener('click', async () => { try { await post('/api/admin/approve', { id: u.id, approved: !u.approved }); refreshUsers() } catch (e) { alert(e.message) } }); row.append(b) }
-      list.append(row);
-    }
-  } catch (e) { $('#usersList').textContent = e.message }
-}
-function updateEngine(s) {
-  // s may be /api/cli/status or legacy config
-  if (s && typeof s.reachable === 'boolean') {
-    $('#engineMode').textContent = !s.reachable ? 'RUST CLI OFFLINE' : s.busy ? 'AGENT BUSY' : s.paired ? 'RUST CLI CONNECTED' : 'RUST REACHABLE / UNPAIRED';
-    $('#engineNote').textContent = !s.reachable ? 'Start: wrosecode server --hostname 127.0.0.1 --port 4076' : s.busy ? 'A turn holds the agent — retry shortly' : s.paired ? 'Paired Rust agent runtime' : 'Open Connect CLI and pair';
-    $('#connectionPill').lastChild.textContent = ' ' + (!s.reachable ? 'CLI OFFLINE' : s.busy ? 'AGENT BUSY' : s.paired ? 'KALI CONNECTED' : 'UNPAIRED');
-    $('#engineLight').style.color = s.reachable && s.paired && !s.busy ? '#67d4ff' : '#e0a83c';
-    return;
+async function refreshProfiles(){
+ try{
+  const r=await api('/api/ai/providers'),el=$('#profilesList'),select=$('#aiProfile');el.replaceChildren();
+  const chosen=select.value;select.replaceChildren(new Option('Local paired CLI / default',''));
+  for(const profile of r.providers){
+   select.add(new Option(profile.name,profile.id));const row=elt('div','history-item');row.append(elt('strong','',profile.name),elt('small','',profile.base_url));
+   const b=elt('button','tiny-button','REMOVE');b.type='button';b.onclick=async()=>{if(!confirm('Delete encrypted provider profile?'))return;try{await api(`/api/ai/providers/${profile.id}`,{method:'DELETE'});refreshProfiles()}catch(e){$('#profilesStatus').textContent=e.message}};
+   row.append(b);el.append(row)
   }
+  if(r.providers.some(x=>x.id===chosen))select.value=chosen;
+  $('#profilesStatus').textContent=r.encryptionReady?'Provider keys are encrypted with the server master key.':'Set PROVIDER_ENCRYPTION_KEY on Node server to enable saved providers.';
+  if(me)$('#sendChat').disabled=!me.canRun&&!select.value;
+ }catch(e){$('#profilesStatus').textContent=e.message}
 }
-function setup() {
-  $$('.side-link').forEach(b => b.addEventListener('click', () => pickView(b.dataset.view)));
-  $('#mobileSidebar').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
-  $('#logoutBtn').addEventListener('click', async () => { await post('/api/auth/logout', {}); location.replace('login.html') });
-  $('#chatForm').addEventListener('submit', runChat);
-  $('#cancelChat').addEventListener('click', () => cancel('chat'));
-  $('#cancelCtf').addEventListener('click', () => cancel('ctf'));
-  $('#startCtf').addEventListener('click', runCtf);
-  $('#refreshHistory').addEventListener('click', refreshJobs);
-  $('#refreshProviders').addEventListener('click', refreshProviders);
-  $('#refreshUsers').addEventListener('click', refreshUsers);
-  if ($('#refreshCli')) $('#refreshCli').addEventListener('click', refreshCli);
-  if ($('#pairCli')) $('#pairCli').addEventListener('click', pairCli);
-  if ($('#revokeCli')) $('#revokeCli').addEventListener('click', revokeCli);
-  $('#prompt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chatForm').requestSubmit() } });
-  $('#clearChat').addEventListener('click', () => $('#transcript').replaceChildren());
-  $$('[data-example]').forEach(b => b.addEventListener('click', () => { $('#prompt').value = b.dataset.example; $('#prompt').focus() }));
-  $('#artifactInput').addEventListener('change', () => { $('#artifactInfo').textContent = $('#artifactInput').files[0] ? `${$('#artifactInput').files[0].name} (${($('#artifactInput').files[0].size / 1024).toFixed(1)} KiB)` : 'No file selected' });
-  const drop = $('#fileDrop');
-  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-active') });
-  drop.addEventListener('dragleave', () => drop.classList.remove('drag-active'));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag-active'); const file = e.dataTransfer.files[0]; if (file) { const dt = new DataTransfer(); dt.items.add(file); $('#artifactInput').files = dt.files; $('#artifactInfo').textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KiB)` } });
+async function addProfile(e){e.preventDefault();const submit=e.target.querySelector('[type=submit]');submit.disabled=true;try{
+  await post('/api/ai/providers',{name:$('#profileName').value.trim(),preset:$('#profilePreset').value,baseUrl:$('#profileUrl').value.trim(),apiKey:$('#profileKey').value});
+  $('#profileKey').value='';$('#profileName').value='';await refreshProfiles();$('#profilesStatus').textContent='API profile saved encrypted. Select it in Agent Chat.'
+ }catch(e){$('#profilesStatus').textContent=e.message}finally{submit.disabled=false}
 }
-(async () => {
-  setup();
-  try {
-    const [who, cfg] = await Promise.all([apiJson('/api/me'), apiJson('/api/config')]);
-    if (!who.user) { location.replace('login.html'); return }
-    me = who.user; bridge = cfg.bridge;
-    for (const provider of ['google', 'github']) {
-      if (!cfg[provider]) { const link = $(`#link${provider[0].toUpperCase() + provider.slice(1)}`); if (link) { link.classList.add('disabled'); link.removeAttribute('href'); link.title = 'Configure OAuth credentials on Kali first' } }
-      else { const link = $(`#link${provider[0].toUpperCase() + provider.slice(1)}`); if (link) link.href = api(`/api/oauth/${provider}`) }
-    }
-    $('#userInitial').textContent = me.email[0].toUpperCase();
-    $('#footerUser').textContent = me.email;
-    $('#adminNav').hidden = me.role !== 'owner';
-    try {
-      const s = await apiJson('/api/cli/status');
-      cliState = { reachable: !!s.reachable, authorized: !!s.authorized, busy: !!s.busy, paired: !!s.paired };
-      updateEngine(s);
-    } catch {
-      $('#engineMode').textContent = bridge === 'cli' ? 'RUST CLI CONNECTED' : bridge === 'mock' ? 'SIMULATION MODE' : 'NOT CONNECTED';
-      $('#engineNote').textContent = bridge === 'cli' ? 'Local Kali agent runtime' : bridge === 'mock' ? 'Test responses only — not real AI' : 'Set BRIDGE_MODE=cli on Kali';
-      $('#connectionPill').lastChild.textContent = ' ' + (bridge === 'cli' ? 'KALI CONNECTED' : bridge === 'mock' ? 'MOCK SESSION' : 'BRIDGE OFFLINE');
-      $('#engineLight').style.color = bridge === 'cli' ? '#67d4ff' : '#67cfff';
-    }
-    if (!me.canRun) { $('#sendChat').disabled = true; $('#startCtf').disabled = true; line($('#transcript'), 'system', me.role === 'owner' ? 'Execution disabled. Configure BRIDGE_MODE=cli to connect your local Rust binary.' : 'Execution requires owner approval and explicit multi-user execution configuration.') }
-    else if (!cliState.paired && cliState.reachable) { line($('#transcript'), 'system', 'Rust server reachable but unpaired. Open Connect CLI and enter your pairing code.') }
-    refreshJobs();
-  } catch (e) { location.replace('login.html') }
-})();
+async function loadModels(){const profile=$('#aiProfile').value,dat=$('#modelsList');dat.replaceChildren();if(!profile){$('#sendChat').disabled=!me?.canRun;return}$('#sendChat').disabled=false;try{const r=await api(`/api/ai/providers/${profile}/models`);for(const item of r.models){const opt=document.createElement('option');opt.value=item.id;dat.append(opt)}$('#model').placeholder=`${r.models.length} models available (type/select ID)`}catch(e){$('#model').placeholder='Provider models unavailable: type an ID';$('#profilesStatus').textContent=e.message}}
+async function refreshSessions(){
+ try{const direct=!!$('#aiProfile').value;const d=await api(direct?'/api/ai/sessions':'/api/devices/sessions'),el=$('#aiSession');
+  const chosen=sessionId||el.value;el.replaceChildren(new Option('New conversation',''));
+  const eligible=d.sessions.filter(x=>direct||!$('#chatDevice').value||x.device_id===$('#chatDevice').value);
+  for(const item of eligible)el.add(new Option(item.title,item.id));
+  if(eligible.some(x=>x.id===chosen))el.value=chosen;else sessionId='';
+  $('#newCliSession').hidden=direct;
+ }catch(e){$('#chatSubstatus').textContent=e.message}
+}
+async function newCliSession(){
+ try{const deviceId=$('#chatDevice').value;if(!deviceId)return alert('Select an online device first.');
+  const title=window.prompt('Conversation title?','New WROSECODE conversation');if(title===null)return;
+  const d=await post('/api/devices/sessions',{deviceId,title:title||'CLI conversation'});
+  sessionId=d.session.id;await refreshSessions();$('#aiSession').value=sessionId;$('#transcript').replaceChildren();
+ }catch(e){line($('#transcript'),'error',e.message)}
+}
+async function loadSession(){sessionId=$('#aiSession').value;const target=$('#transcript');if(!sessionId){target.replaceChildren();return}
+ try{const d=await api((!!$('#aiProfile').value?'/api/ai/sessions/':'/api/devices/sessions/')+sessionId);target.replaceChildren();for(const m of d.messages)line(target,m.role==='user'?'user':'agent',m.content)}catch(e){line(target,'error',e.message)}
+}
+async function refreshRust(){const box=$('#rustStatus');if(!box)return;box.textContent='Checking local Rust server...';try{const s=await api('/api/cli/status');box.textContent=['REACHABLE: '+(s.reachable?'YES':'NO'),'AUTHORIZED: '+(s.authorized?'YES':'NO'),'PAIRED: '+(s.paired?'YES ('+(s.device_id||'')+')':'NO'),s.busy?'STATUS: BUSY — agent turn in progress':'STATUS: '+((s.provider||'')+(s.model?' / '+s.model:''))||(s.error||'unknown'),'PAIRED DEVICES: '+(s.paired_devices??'?'),'PENDING CODES: '+(s.pending_codes??'?')].join('\n')}catch(e){box.textContent='Rust bridge failed: '+e.message}}
+async function refreshPermissions(){try{const r=await api('/api/me');me=r.user;await refreshDevices();if(me)$('#startCtf').disabled=!me.canRun;if(me)$('#sendChat').disabled=!me.canRun&&!$('#aiProfile').value}catch{}}
+async function refreshUsers(){try{const d=await api('/api/admin/users');const list=$('#usersList');list.replaceChildren();for(const u of d.users){const row=elt('div','history-item');row.append(elt('strong','history-email',u.email),elt('span','history-status',u.role.toUpperCase()),elt('span','',u.approved?'APPROVED':'PENDING'));if(u.role!=='owner'){const b=elt('button','tiny-button',u.approved?'REVOKE':'APPROVE');b.addEventListener('click',async()=>{try{await post('/api/admin/approve',{id:u.id,approved:!u.approved});refreshUsers()}catch(e){alert(e.message)}});row.append(b)}list.append(row)}}catch(e){$('#usersList').textContent=e.message}}
+function setup(){ $$('.side-link').forEach(b=>b.addEventListener('click',()=>pickView(b.dataset.view)));$('#mobileSidebar').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));$('#logoutBtn').addEventListener('click',async()=>{await post('/api/auth/logout',{});location.replace('login.html')});$('#chatForm').addEventListener('submit',runChat);$('#cancelChat').addEventListener('click',()=>cancel('chat'));$('#cancelCtf').addEventListener('click',()=>cancel('ctf'));$('#startCtf').addEventListener('click',runCtf);$('#refreshHistory').addEventListener('click',refreshJobs);$('#refreshProviders').addEventListener('click',()=>{refreshProviders();refreshProfiles()});$('#refreshDevices').addEventListener('click',refreshDevices);if($('#refreshRust'))$('#refreshRust').addEventListener('click',refreshRust);$('#newPairCode').addEventListener('click',newPair);$('#addProviderForm').addEventListener('submit',addProfile);$('#aiProfile').addEventListener('change',async()=>{sessionId='';await loadModels();await refreshSessions()});$('#aiSession').addEventListener('change',loadSession);$('#newCliSession').addEventListener('click',newCliSession);$('#chatDevice').addEventListener('change',()=>{sessionId='';refreshSessions()});$('#toolForm').addEventListener('submit',runTool);$('#cancelTool').addEventListener('click',()=>cancel('tool'));$('#sendStdin').addEventListener('click',sendInput);$('#toolOperation').addEventListener('change',()=>{const op=$('#toolOperation').value;$('#toolCommand').disabled=op!=='terminal';$('#toolPath').disabled=op==='terminal';$('#toolContent').disabled=op!=='write'});$('#toolOperation').dispatchEvent(new Event('change'));$('#refreshUsers').addEventListener('click',refreshUsers);$('#prompt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#chatForm').requestSubmit()}});$('#clearChat').addEventListener('click',()=>$('#transcript').replaceChildren());$$('[data-example]').forEach(b=>b.addEventListener('click',()=>{$('#prompt').value=b.dataset.example;$('#prompt').focus()}));$('#artifactInput').addEventListener('change',()=>{$('#artifactInfo').textContent=$('#artifactInput').files[0]?`${$('#artifactInput').files[0].name} (${($('#artifactInput').files[0].size/1024).toFixed(1)} KiB)`:'No file selected'});const drop=$('#fileDrop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('drag-active')});drop.addEventListener('dragleave',()=>drop.classList.remove('drag-active'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('drag-active');const file=e.dataTransfer.files[0];if(file){const dt=new DataTransfer();dt.items.add(file);$('#artifactInput').files=dt.files;$('#artifactInfo').textContent=`${file.name} (${(file.size/1024).toFixed(1)} KiB)`}})}
+(async()=>{setup();try{const [who,cfg]=await Promise.all([api('/api/me'),api('/api/config')]);if(!who.user){location.replace('login.html');return}me=who.user;bridge=cfg.bridge;for(const provider of ['google','github']){if(!cfg[provider]){const link=$(`#link${provider[0].toUpperCase()+provider.slice(1)}`);link.classList.add('disabled');link.removeAttribute('href');link.title='Configure OAuth credentials on Kali first'}}$('#userInitial').textContent=me.email[0].toUpperCase();$('#footerUser').textContent=me.email;for(const provider of ['google','github']){const a=$(`#link${provider[0].toUpperCase()+provider.slice(1)}`);if(a&&window.wroseApiPath)a.href=window.wroseApiPath(`/api/oauth/${provider}`)}$('#adminNav').hidden=me.role!=='owner';$('#engineMode').textContent=me.canRun&&bridge==='disabled'?'YOUR CLI AVAILABLE':bridge==='cli'?'RUST CLI CONNECTED':bridge==='mock'?'SIMULATION MODE':'NOT CONNECTED';$('#engineNote').textContent=me.canRun&&bridge==='disabled'?'Paired private CLI agent':bridge==='cli'?'Local Kali agent runtime':bridge==='mock'?'Test responses only — not real AI':'Pair your own CLI in Connect CLI';$('#connectionPill').lastChild.textContent=' '+(me.canRun&&bridge==='disabled'?'DEVICE READY':bridge==='cli'?'KALI CONNECTED':bridge==='mock'?'MOCK SESSION':'BRIDGE OFFLINE');$('#engineLight').style.color=bridge==='cli'?'#67d4ff':'#67cfff';if(!me.canRun){$('#sendChat').disabled=true;$('#startCtf').disabled=true;line($('#transcript'),'system',me.role==='owner'?'Execution disabled. Configure BRIDGE_MODE=cli to connect your local Rust binary.':'Execution requires owner approval and explicit multi-user execution configuration.')}refreshJobs();refreshDevices();refreshProfiles();refreshSessions();const hash=location.hash.slice(1);if(['devices','ctf','chat','providers','terminal'].includes(hash))pickView(hash);}catch(e){location.replace('login.html')}})();
 })();

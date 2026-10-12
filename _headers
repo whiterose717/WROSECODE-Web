@@ -1,21 +1,12 @@
-# Cloudflare Pages headers for WROSECODE static frontend.
-# HTML: no-cache (always fresh deploys); assets: cached; API has no backend here.
-/index.html
-  Cache-Control: public, max-age=0, must-revalidate
+/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-/login.html
-  Cache-Control: public, max-age=0, must-revalidate
-/console.html
-  Cache-Control: public, max-age=0, must-revalidate
-/docs.html
-  Cache-Control: public, max-age=0, must-revalidate
-/web-setup.html
-  Cache-Control: public, max-age=0, must-revalidate
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-  Content-Type: text/css; charset=utf-8
-/*.js
-  Cache-Control: public, max-age=31536000, immutable
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cache-Control: public, max-age=300
+
+/*.html
+  Cache-Control: no-store
+
+/backend.js
+  Cache-Control: no-store

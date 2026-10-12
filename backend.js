@@ -1,19 +1,20 @@
-/* WROSECODE backend endpoint configuration.
- * Same-origin by default (Node serves frontend + /api).
- * For Cloudflare Pages + remote backend (Tunnel/Tailscale), set
- * window.WROSECODE_BACKEND to the backend origin, e.g.:
- *   window.WROSECODE_BACKEND = "https://your-kali-tailnet.ts.net";
- * Or store an override in localStorage: wrose_backend
- */
-(function () {
-  'use strict';
-  var stored = '';
-  try { stored = localStorage.getItem('wrose_backend') || ''; } catch (e) {}
-  var configured = (window.WROSECODE_BACKEND || '').replace(/\/$/, '');
-  var override = String(stored || '').replace(/\/$/, '');
-  window.WROSECODE_BACKEND = override || configured || '';
-  window.WROSECODE_API = function (path) {
-    if (window.WROSECODE_BACKEND) return window.WROSECODE_BACKEND + path;
-    return path;
-  };
+// Production preference: serve the console from the SAME origin as the Node backend
+// (via Cloudflare Tunnel or private Tailscale Serve). This avoids Safari third-party
+// cookie blocking on the static *.pages.dev hostname.
+(()=>{'use strict';
+ const configured=(window.WROSECODE_BACKEND||'').trim().replace(/\/$/,'');
+ let chosen=configured;
+ try{if(!chosen)chosen=localStorage.getItem('wrose_backend')||''}catch{}
+ try{const u=new URL(chosen);if(!['https:'].includes(u.protocol)&&!(u.protocol==='http:'&&['127.0.0.1','localhost'].includes(u.hostname)))chosen='';else chosen=u.origin}catch{chosen=''}
+ window.WROSECODE_API_BASE=chosen||location.origin;
+ window.wroseApiPath=p=>window.WROSECODE_API_BASE+p;
+ // Back-compat for pages expecting the older helper name.
+ window.WROSECODE_BACKEND=chosen;
+ window.WROSECODE_API=p=>window.WROSECODE_API_BASE+p;
+ // Static Pages has no auth endpoint; open full authenticated console at backend.
+ if(chosen&&chosen!==location.origin){
+   document.querySelectorAll('a[href="login.html"],a[href="console.html"]').forEach(a=>{
+     a.href=chosen+'/'+a.getAttribute('href');
+   });
+ }
 })();

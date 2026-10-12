@@ -1,97 +1,30 @@
-# OAuth setup — Google + GitHub (production)
+# Google and GitHub OAuth setup
 
-Secrets stay in the Node backend `.env` only. Never put them in Pages,
-`backend.js`, HTML, or git.
+**Security first:** OAuth client secrets previously posted in chat should be treated as exposed. Revoke/rotate both secrets in Google Cloud Console and GitHub Developer Settings, then set the new values in the LOCAL `.env` only. Do not reuse posted secrets.
 
-## Redirect URIs (exact)
+Use a stable Node HTTPS hostname such as `https://console.example.com`, not `wrosecode-web.pages.dev`, for both OAuth callbacks. Set `PUBLIC_BASE_URL=https://console.example.com` and `FRONTEND_URL=https://console.example.com` before registering URLs.
 
-The backend builds callbacks as:
+## Google
 
-```
-{ PUBLIC_BASE_URL }/api/oauth/{google,github}/callback
-```
+Open <https://console.cloud.google.com/auth/overview>, create/select a project, configure the Google Auth Platform consent screen, set audience `External` and the necessary test users in testing mode. Create an OAuth client of type **Web application**. Add the backend origin `https://console.example.com` as appropriate, and the exact redirect URI:
 
-Register **exactly** these two URIs (replace the host with your backend origin):
+`https://console.example.com/api/oauth/google/callback`
 
-Local dev:
+Save the resulting `GOOGLE_CLIENT_ID` and regenerated `GOOGLE_CLIENT_SECRET` to `.env`. Request only `openid email profile`. OAuth callback identity comes from Google's userinfo endpoint; a verified email is required. Signups are allowed when `SIGNUP_MODE=open`. Existing password users aren't silently merged by email; link from an already authenticated session.
 
-```
-http://127.0.0.1:8787/api/oauth/google/callback
-http://127.0.0.1:8787/api/oauth/github/callback
-```
+## GitHub
 
-Production (Tunnel example):
+Open <https://github.com/settings/developers> → OAuth Apps → New OAuth App. Set homepage to your WROSECODE website, callback to:
 
-```
-https://wrose-bridge.example.com/api/oauth/google/callback
-https://wrose-bridge.example.com/api/oauth/github/callback
-```
+`https://console.example.com/api/oauth/github/callback`
 
-Production (Tailscale example):
+Create the app, copy `GITHUB_CLIENT_ID`, generate a NEW client secret and store the new `GITHUB_CLIENT_SECRET` in `.env`. Scopes: `read:user user:email`. The backend requires a verified primary GitHub email. Email missing or unverified will block login until resolved in GitHub settings.
 
-```
-https://your-kali.your-tailnet.ts.net/api/oauth/google/callback
-https://your-kali.your-tailnet.ts.net/api/oauth/github/callback
-```
+## Verify
 
-Do **not** register the Pages origin (`wrosecode-web.pages.dev/...`) — Pages
-cannot complete OAuth. Start login at the backend origin
-(`{backend}/api/oauth/google`) or let the Pages frontend redirect there via
-`WROSECODE_API()`.
+Restart Node. `GET /api/config` will show `google:true` / `github:true` only when both ID and secret are configured. Test consent, callback, session, and logout in a real browser on the backend hostname. OAuth cannot be fully tested without valid owned applications and user consent.
 
-## Google Cloud Console
+**Do not use** `http://127.0.0.1` as a production callback hostname. Local dev callback URIs (if separately registered) are:
 
-1. https://console.cloud.google.com → APIs & Services → Credentials.
-2. Create OAuth client ID → Web application.
-3. Authorized JavaScript origins: your backend origin
-   (e.g. `https://wrose-bridge.example.com`).
-4. Authorized redirect URIs: the two Google URIs above.
-5. Copy Client ID + Client Secret into Kali `.env`:
-
-```dotenv
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-```
-
-6. Configure OAuth consent screen (external). Google may require domain
-   verification and rejects some `*.ts.net` redirects — a domain you control
-   with HTTPS may be necessary.
-7. Flow used: authorization-code + PKCE S256, `state` validated with
-   timing-safe compare, `email_verified=true` required, identity from
-   `https://openidconnect.googleapis.com/v1/userinfo`.
-8. Account linking: if the Google email already exists as a local account,
-   login redirects to `login.html?error=link_required`. Sign in with
-   password first, then use **Link Google login** in the console.
-
-## GitHub (Settings → Developer settings → OAuth Apps)
-
-1. New OAuth App → Homepage URL: your backend origin.
-2. Authorization callback URL: the GitHub URI above (exact).
-3. Copy Client ID + Client Secret into `.env`:
-
-```dotenv
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-```
-
-4. Flow: authorization-code, `state` validated, primary **verified** email
-   required via `/user/emails`. Private emails without a verified primary
-   are rejected.
-5. Same `link_required` / `signup_closed` rules as Google.
-
-## Verify without secrets
-
-```bash
-curl -s http://127.0.0.1:8787/api/config
-# {"google":false,"github":false,...} → buttons disabled with tooltip
-
-curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" \
-  http://127.0.0.1:8787/api/oauth/google
-# 503 OAuth provider not configured (expected without secrets)
-
-curl -s http://127.0.0.1:8787/api/oauth/nope
-# 404 Unknown provider
-```
-
-With secrets configured, `/api/oauth/google` returns `302` to
-`accounts.google.com/o/oauth2/v2/auth?...`.
+- `http://127.0.0.1:8787/api/oauth/google/callback`
+- `http://127.0.0.1:8787/api/oauth/github/callback`

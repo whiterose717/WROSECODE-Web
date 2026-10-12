@@ -1,80 +1,35 @@
-# CLI pairing — connect the browser to your Kali Rust server
+> **Updated:** Read [NATIVE_BRIDGE_V2.md](NATIVE_BRIDGE_V2.md) for remote tools, local approvals, cross-platform usage, conversation history and important limitations.
 
-The Rust server binds `127.0.0.1:4076` and requires a bearer token from
-`~/.wrosecode/server.token` (or per-device tokens from pairing). The token
-never leaves your Kali host: the browser only holds the Node session cookie,
-and Node proxies to Rust server-side.
+# Private WROSECODE CLI pairing
 
-## One-time setup (Kali)
+Every signed-in account pairs **its own machine**. No website user receives arbitrary shell access to the Node host or another user's Kali device.
 
-```bash
-# 1. Start the real agent API (loopback only — do NOT use 0.0.0.0 publicly)
-wrosecode server --hostname 127.0.0.1 --port 4076
-
-# 2. In another terminal, generate a pairing code (10-minute, one-time use)
-wrosecode bridge pair
-# → Device  dev_xxx
-# → Code    123-456
-
-# 3. Start the Node backend (same machine)
-cd /home/kali/Desktop/myweb/WROSECODE-Web-Console
-node --env-file=.env server/server.mjs
-```
-
-If `HOME` differs between root and your user, set the token path explicitly:
-
-```dotenv
-WROSE_TOKEN_FILE=/root/.wrosecode/server.token
-# or: WROSE_TOKEN_FILE=/home/kali/.wrosecode/server.token
-```
-
-## Pair in the browser
-
-1. Sign in (Google, GitHub, or approved email/password).
-2. Open **Connect CLI** in the console sidebar.
-3. Status shows `REACHABLE / UNPAIRED` if Rust is up.
-4. Enter the `123-456` code + device name → **PAIR DEVICE**.
-5. Status becomes `RUST CLI CONNECTED` with provider/model.
-6. Agent chat now streams from the real Rust model.
-7. **REVOKE** deletes the device token locally and on Rust
-   (`POST /v1/devices/revoke`).
-
-Pairing binds `account_id = your login email`. Rust enforces session
-isolation: a device token cannot read another account's sessions.
-
-## If Kali stops
-
-- Status shows `CLI OFFLINE`; chat shows the error (no fake success).
-- Restart `wrosecode server ...` — the browser restores service without
-  exposing another user's device (pairing is per-login-email).
-
-## Relay / different networks
-
-The Rust server dials **out** only when configured:
+1. Deploy/start the Node service and serve the console from its secure HTTPS origin.
+2. Register or sign in with your own account.
+3. Open Console → `Connect CLI` → `GENERATE ONE-TIME PAIRING CODE`.
+4. Install WROSECODE CLI on **your own machine**, along with Node.js 22.13+ and this repository/ZIP's `scripts/device-agent.mjs`.
+5. From the ZIP's project folder, in a non-root terminal:
 
 ```bash
-wrosecode bridge status     # NOT CONFIGURED = local-only (normal)
-wrosecode bridge login --relay wss://<your-worker>/relay/device
+command -v wrosecode
+wrosecode --help
+node scripts/device-agent.mjs --backend https://console.example.com --code YOUR-12-CHAR-CODE
 ```
 
-Without a relay, cross-network browsers must reach the **Node backend**
-(Tunnel/Tailscale), which proxies to Rust over loopback. Never enter
-`192.168.x.x:4076` into the public HTTPS site — mixed-content browsers block
-`http://` private IPs from `https://` pages, and the token would be exposed.
+The companion securely stores `~/.wrosecode/web-device.json` with mode 0600; never publish or copy this file. Each agent makes outbound HTTPS requests, polls only its assigned jobs, and invokes the local `wrosecode` program using argument arrays, not a remote arbitrary-shell endpoint. It writes artifacts into its local per-job workspace. The system does not require `wrosecode server --hostname` (some installed WROSECODE launchers treat `server` as a prompt).
 
-## API (authenticated, owner/approved only)
+6. Console → Connect CLI → Refresh should show ONLINE when the companion polls. In Chat, choose `Local paired CLI`, select optional CLI provider/model, then submit. In CTF, confirm your authorization, upload a challenge file (16 MiB max), and start the live investigation. The agent output is streamed back. Regex-like flags are **candidates, not verified solves**.
+7. Use `REVOKE` from Connect CLI to disable a lost device. Press Ctrl+C to stop the local companion. A stopped agent goes OFFLINE after about 90 seconds. Keep the CLI host online for live execution.
 
-```
-GET  /api/cli/status      → reachable/authorized/paired/busy/provider/model
-POST /api/cli/pair        → {code, device_name?} → {device_id} (no token out)
-POST /api/cli/revoke      → unpair current user
-GET  /api/cli/providers   → redacted provider list (keys masked)
-GET  /api/cli/models?provider=vyce
-POST /api/cli/chat        → {prompt,...} → {answer, session_id}
-POST /api/cli/chat/stream → SSE: chat.started/delta/completed/failed
-GET  /api/cli/sessions    → own-account sessions only
-GET  /api/cli/ctf/status
-```
+If an installed `wrosecode` binary does not support server/bridge subcommands, this companion intentionally uses its existing CLI invocation interface. CLI features depend on the installed binary; no universal command compatibility or flag-solvability guarantee is possible without testing it.
 
-HTTP 503 `agent busy` means a chat/CTF turn holds the Rust agent — the UI
-shows BUSY and retries; it never hangs.
+Use `BRIDGE_MODE=disabled`, `ALLOW_MEMBER_JOBS=0`, `I_ACCEPT_SHARED_CLI_RISK=no` as the default secure setup. This does **not** disable personally paired devices. A member need not be approved to use their **own** authenticated device or personal AI API profile, but cannot execute the server owner's shared CLI.
+
+## Troubleshooting
+
+- `BACKEND OFFLINE`: Node isn't reachable at the hostname. Cloudflare Pages hosts only static files. Open the full console at the Node HTTPS hostname, or configure `backend.js` navigation there.
+- `CLI OFFLINE`: Start the companion, check outbound HTTPS, then refresh Devices.
+- `WROSECODE CLI not found`: set `WROSECODE_BIN` to the installed executable path in the companion's environment.
+- `401 device token`: revoked/invalid credential; generate a fresh pairing code.
+- `No model`: enter a valid model ID for direct API profiles or configure the device's own CLI provider.
+- OAuth 503: provider ID/secret not configured or rotated.

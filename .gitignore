@@ -1,27 +1,13 @@
-# Env with secrets — never commit
 .env
-
-# Runtime data (SQLite, workspaces, uploads)
-data/*.sqlite*
-data/*.db*
-data/*.wal
-data/*.shm
-data/workspaces/
-data/uploads/
-data/artifacts/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Dependencies
-node_modules/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Playwright
-test-results/
-playwright-report/
+.env.*
+!.env.example
+data/
 dist/
+node_modules/
+*.sqlite*
+*.db
+*.log
+*device-token*
+*.swp
+*.swo
+*.zip

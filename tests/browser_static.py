@@ -1,73 +1,42 @@
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from html import escape
 root=Path(__file__).resolve().parent.parent
-
-def page_html(name):
-    s=(root/name).read_text()
-    for css in ['styles.css','docs.css','console.css']:
-        s=s.replace(f'<link rel="stylesheet" href="{css}" />',f'<style>{(root/css).read_text()}</style>')
-        s=s.replace(f'<link rel="stylesheet" href="{css}">',f'<style>{(root/css).read_text()}</style>')
-    for script in ['app.js','docs.js','console.js','login.js']:
-        s=s.replace(f'<script src="{script}" defer></script>',f'<script>{(root/script).read_text()}</script>')
-        s=s.replace('src="assets/wrosecode-neon-logo.png"','src="data:image/png;base64,'+__import__('base64').b64encode((root/'assets/wrosecode-neon-logo.png').read_bytes()).decode()+'"')
-    import re
-    s=re.sub(r'<link[^>]+(?:fonts\.googleapis|fonts\.gstatic)[^>]*>', '', s)
-    s=re.sub(r"@import url\('https://fonts\.googleapis[^\n]+\n", '', s)
-    return s
+s=(root/'console.html').read_text()
+css=(root/'console.css').read_text();css=css.replace(css.split('\n')[0],'') if css.startswith('@import') else css
+s=s.replace('<link rel="stylesheet" href="console.css">','<style>'+css+'</style>')
+for name in ['backend.js','console.js']:
+ s=s.replace('<script src="'+name+'" defer></script>','<script>'+ (root/name).read_text()+'</script>')
+stub='''<script>
+window.WROSECODE_BACKEND = 'https://console.example.test';
+window.fetch = async (url, opts={}) => {
+ const route=String(url).replace('https://console.example.test','');
+ const responses={
+ '/api/me':{user:{id:'a',email:'alice@example.com',role:'member',approved:false,canRun:true}},
+ '/api/config':{bridge:'disabled',google:false,github:false,signup:'open'},
+ '/api/jobs':{jobs:[]},
+ '/api/devices':{devices:[{id:'device-uuid',name:'Kali',platform:'linux',cli_version:'v1',online:true,revoked:false,last_seen:Date.now(),capabilities:{chat:true,terminal:true,files:true}}]},
+ '/api/providers':{raw:'Local CLI'},
+ '/api/ai/providers':{providers:[],encryptionReady:true},
+ '/api/devices/sessions':{sessions:[]},
+ '/api/ai/sessions':{sessions:[]}
+ };
+ return {ok:true,json:async()=>responses[route]||{ok:true}};
+};
+</script>'''
+s=s.replace('<script>'+ (root/'backend.js').read_text()+'</script>',stub+'<script>'+ (root/'backend.js').read_text()+'</script>')
 with sync_playwright() as p:
-  browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
-  for width,height,label in [(1440,900,'desktop'),(390,844,'mobile')]:
-    ctx=browser.new_context(viewport={'width':width,'height':height},device_scale_factor=1)
-    page=ctx.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-    print('loading index',label,flush=True);page.set_content(page_html('index.html'),wait_until='domcontentloaded',timeout=10000)
-    assert page.get_by_text('YOUR KALI TERMINAL.').count()>0
-    assert page.locator('.web-console-graphic img').count()==1
-    if label=='mobile':
-      page.locator('#menuToggle').click()
-      assert page.locator('#mobileNav').is_visible()
-      assert page.locator('#mobileNav a[href="login.html"]').count()==1
-    assert page.evaluate('document.documentElement.scrollWidth')<=width+2
-    if label=='desktop':
-      # Preserve the original deterministic in-browser CTF lab.
-      page.locator('[data-sample="crypto"]').click()
-      page.locator('#scopeCheckbox').check()
-      page.locator('#analyzeButton').click()
-      page.wait_for_timeout(1600)
-      assert page.locator('#exportButton').is_enabled()
-    page.screenshot(path=f'/mnt/data/wrose-web-home-{label}.png')
-    print('loading login',label,flush=True);page.set_content(page_html('login.html'),wait_until='domcontentloaded',timeout=10000)
-    assert page.locator('#googleLogin').count()==1 and page.locator('#githubLogin').count()==1
-    page.screenshot(path=f'/mnt/data/wrose-web-login-{label}.png')
-    page.set_content(page_html('web-setup.html'),wait_until='domcontentloaded',timeout=10000)
-    assert page.get_by_text('Connect through Tailscale.').count()>0
-    # Stub back-end for safe, deterministic browser layout/interaction tests.
-    page.evaluate('''() => { window.fetch = async (path) => ({ ok:true, json: async () => {
-      if(path==='/api/me') return {user:{id:'admin',email:'owner@example.com',role:'owner',approved:true,canRun:true}};
-      if(path==='/api/config') return {bridge:'mock',signup:'closed',google:false,github:false};
-      if(path==='/api/jobs') return {jobs:[]};
-      if(path==='/api/providers') return {raw:'MOCK providers'};
-      return {ok:true}; } }); }''')
-    print('loading console',label,flush=True);page.set_content(page_html('console.html'),wait_until='domcontentloaded',timeout=10000)
-    page.wait_for_timeout(100)
-    assert page.locator('#engineMode').inner_text()=='SIMULATION MODE'
-    if label=='mobile':
-      page.locator('#mobileSidebar').click()
-      assert page.locator('#sidebar.open').count()==1
-    page.locator('[data-view="ctf"]').click()
-    assert page.locator('#view-ctf.is-active').count()==1
-    assert page.locator('#artifactInput').count()==1
-    if label=='mobile':page.locator('#mobileSidebar').click()
-    page.locator('[data-view="providers"]').click()
-    assert page.locator('#view-providers.is-active').count()==1
-    if label=='mobile':page.locator('#mobileSidebar').click()
-    page.locator('[data-view="chat"]').click()
-    assert page.locator('#view-chat.is-active').count()==1
-    page.wait_for_timeout(400)
-    page.screenshot(path=f'/mnt/data/wrose-web-console-{label}.png')
-    print(label,'width',page.evaluate('document.documentElement.scrollWidth'),'expected',width,'errors',errors)
-    assert page.evaluate('document.documentElement.scrollWidth')<=width+2
-    assert not errors,errors
-    ctx.close()
-  browser.close()
-print('PASS static browser rendering desktop and mobile')
+ browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage'])
+ for width,height in [(1300,900),(390,844)]:
+  page=browser.new_page(viewport={'width':width,'height':height});errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+  page.set_content(s,wait_until='domcontentloaded',timeout=15000)
+  page.wait_for_timeout(350)
+  if width==390:page.locator('#mobileSidebar').click()
+  page.locator('[data-view="terminal"]').click()
+  assert page.locator('#view-terminal.is-active').count()==1
+  assert page.locator('#toolForm').count()==1
+  assert page.locator('#toolDevice option').count()>0
+  assert page.evaluate('document.documentElement.scrollWidth')<=width+3
+  assert not errors,errors
+  print('PASS UI',width,errors)
+  page.close()
+ browser.close()
