@@ -1,3 +1,6 @@
+# Pretty URLs: serve pages at extensionless paths with 200 rewrites.
+# Exact-path rules are evaluated top-down, first match wins.
 /login /login.html 200
 /console /console.html 200
 /docs /docs.html 200
+/web-setup /web-setup.html 200
