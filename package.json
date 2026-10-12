@@ -12,7 +12,7 @@
     "test": "node --test tests/*.test.mjs",
     "build": "node scripts/build-static.mjs",
     "device": "node scripts/device-agent.mjs",
-    "check": "node --check server/server.mjs && node --check server/device-bridge.mjs && node --check server/rust-bridge.mjs && node --check server/ai-providers.mjs && node --check scripts/device-agent.mjs && node --check scripts/native-operations.mjs && node --check scripts/build-static.mjs && node --check scripts/create-admin.mjs && node --check backend.js && node --check login.js && node --check console.js"
+    "check": "node --check server/server.mjs && node --check server/flag-candidates.mjs && node --check server/device-bridge.mjs && node --check server/rust-bridge.mjs && node --check server/ai-providers.mjs && node --check scripts/device-agent.mjs && node --check scripts/native-operations.mjs && node --check scripts/build-static.mjs && node --check scripts/create-admin.mjs && node --check backend.js && node --check login.js && node --check console.js"
   },
   "description": "Self-hosted authenticated WROSECODE web console and CLI bridge"
 }

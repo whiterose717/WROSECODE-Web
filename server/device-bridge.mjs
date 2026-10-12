@@ -2,6 +2,7 @@
 // No raw TCP ports and no device tokens are exposed to the web application.
 import crypto from 'node:crypto';
 import {readFile} from 'node:fs/promises';
+import { extractFlagCandidates } from './flag-candidates.mjs';
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const token=()=>crypto.randomBytes(32).toString('base64url');
 const now=()=>Date.now();
@@ -97,7 +98,7 @@ export function createDeviceBridge({db,send,error,jsonBody,addEvent,announce,liv
      if(job.status!=='running')return error(res,409,'Job is no longer running');
      const b=await jsonBody(req);if(typeof b.text!=='string'||b.text.length>6000)return error(res,400,'Invalid log');
      event(job,'log',{text:b.text});
-     if(job.kind==='ctf')for(const match of b.text.matchAll(/\b(?:HTB|flag|CTF|picoCTF)\{[^}\r\n]{3,180}\}/gi))event(job,'candidate',{value:match[0],verified:false,source:'agent-output'});
+     if(job.kind==='ctf')for(const value of extractFlagCandidates(b.text)){const existing=db.prepare("SELECT 1 FROM job_events WHERE job_id=? AND type='candidate' AND json_extract(payload, '$.value')=? LIMIT 1").get(job.id,value);const count=db.prepare("SELECT COUNT(*) AS n FROM job_events WHERE job_id=? AND type='candidate'").get(job.id).n;if(!existing&&count<50)event(job,'candidate',{value,verified:false,source:'device-output'});}
      db.prepare('UPDATE device_jobs SET updated_at=? WHERE job_id=?').run(now(),job.id);
      return send(res,200,{ok:true});
     }

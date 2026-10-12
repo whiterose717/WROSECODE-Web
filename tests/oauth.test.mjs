@@ -13,7 +13,7 @@ async function ready(base){for(let i=0;i<100;i++){try{if((await fetch(base+'/api
 
 test('OAuth redirects use exact callback, PKCE S256, nonce, and one-time state checks',async t=>{
  const dir=mkdtempSync(path.join(tmpdir(),'wrose-oauth-')),p=await port(),base=`http://127.0.0.1:${p}`;
- const child=spawn(process.execPath,['server/server.mjs'],{cwd:root,env:{...process.env,HOST:'127.0.0.1',PORT:String(p),DATA_DIR:dir,PUBLIC_BASE_URL:base,FRONTEND_URL:base,BRIDGE_MODE:'disabled',SIGNUP_MODE:'open',GOOGLE_CLIENT_ID:'google-test-client',GOOGLE_CLIENT_SECRET:'google-test-secret',GITHUB_CLIENT_ID:'github-test-client',GITHUB_CLIENT_SECRET:'github-test-secret'},stdio:'ignore'});
+ const child=spawn(process.execPath,['server/server.mjs'],{cwd:root,env:{...process.env,ENABLE_SOCIAL_LOGIN:'1',HOST:'127.0.0.1',PORT:String(p),DATA_DIR:dir,PUBLIC_BASE_URL:base,FRONTEND_URL:base,BRIDGE_MODE:'disabled',SIGNUP_MODE:'open',GOOGLE_CLIENT_ID:'google-test-client',GOOGLE_CLIENT_SECRET:'google-test-secret',GITHUB_CLIENT_ID:'github-test-client',GITHUB_CLIENT_SECRET:'github-test-secret'},stdio:'ignore'});
  t.after(()=>{child.kill('SIGTERM');rmSync(dir,{recursive:true,force:true})});await ready(base);
  for(const provider of ['google','github']){
   const start=await fetch(`${base}/api/oauth/${provider}`,{redirect:'manual'});assert.equal(start.status,302);

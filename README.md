@@ -1,155 +1,78 @@
-# WROSECODE Enhanced Web Console — Native Bridge Companion v2
+# WROSECODE Web Console — V3
 
-**Source + Cloudflare Pages frontend + self-hosted Node backend + cross-platform companion.** Enhanced remote chat, device status, user-selected device routing, bounded conversation history, streaming, optional stdin and individually locally approved terminal/workspace-file operations. The companion is an external Node process; full native Rust TUI mirroring needs changes to the original Rust CLI repository and remains outside this source ZIP.
+**WROSECODE agent + CTF web workspace** for Node.js 22.13+, modern browsers and per-user CLI companion devices on Kali Linux, Windows and macOS. This source archive includes the static frontend and self-hosted Node/SQLite backend. The Rust `wrosecode` executable is **not** bundled here.
 
-**Start with** [NATIVE_BRIDGE_V2.md](NATIVE_BRIDGE_V2.md), [DEPLOYMENT.md](DEPLOYMENT.md), [CLI_PAIRING.md](CLI_PAIRING.md), [OAUTH_SETUP.md](OAUTH_SETUP.md), [TEST_RESULTS_NATIVE.md](TEST_RESULTS_NATIVE.md).
+### What's new in V3
 
-**Security:** Google/GitHub secrets previously posted in chat must be **replaced** at the providers and kept only in your local `.env`. Do not publish any token or device credential. Use an unprivileged CLI account. The local CLI's AI tools are not an OS sandbox. Protect the backend with HTTPS and authenticated access.
+- Email/password **Sign in / Sign up**, password confirmation, owner bootstrap. Google/GitHub buttons removed. Social OAuth routes **disabled by default**; users sign in with their own website account.
+- Full-viewport dark agent chat inspired by the layout in the supplied DeepSeek Harness screenshot. The WROSECODE name, own branding and cyan accents remain.
+- Responsive mobile layout, collapsible device/provider/model settings, scrollable sessions and batched SSE transcript updates.
+- CTF upload, live output, deduplicated flag-pattern candidate cards and one-click copy. A discovered candidate is **not an independently verified flag**.
+- Account-isolated outbound CLI companion protocol for Windows, macOS and Linux. Each account can pair its own CLI and use chat/CTF and locally approved file/terminal operations, subject to the installed CLI's support.
+- Directly usable `/login` and `/console` routes on Node and Cloudflare Pages with `_redirects`.
 
----
+**Read:** [UPGRADE_V3_SINHALA.md](UPGRADE_V3_SINHALA.md) — install/merge/remote-device instructions in Sinhala/English, [CLI_PAIRING.md](CLI_PAIRING.md), [NATIVE_BRIDGE_V2.md](NATIVE_BRIDGE_V2.md), [DEPLOYMENT.md](DEPLOYMENT.md).
 
-# WROSECODE Enhanced Web Console (ZIP upgrade)
-
-This package is based on the *uploaded standalone source ZIP*. It includes self-service sign-up, per-user private CLI agent pairing, BYOK OpenAI-compatible provider profiles, and a Pages-safe frontend build. See [CHANGELOG-UPGRADE.md](CHANGELOG-UPGRADE.md) for scope and honest test limits.
-
-**Start here:** [DEPLOYMENT.md](DEPLOYMENT.md) · [CLI_PAIRING.md](CLI_PAIRING.md) · [OAUTH_SETUP.md](OAUTH_SETUP.md) · [TEST_RESULTS_UPGRADE.md](TEST_RESULTS_UPGRADE.md)
-
-**URGENT:** Any OAuth client secrets pasted into chat must be revoked and rotated. Never insert secrets into `backend.js` or a shared ZIP.
-
----
-
-# WROSECODE Web Console — Kali-hosted, authenticated agent bridge
-
-This project extends the original WROSECODE static CTF lab and CLI download/docs website with a separate **Node.js 22.13+ backend**, browser chat/CTF workspace, email-password accounts, optional Google/GitHub OAuth, provider selection, live SSE, and Kali Linux / Tailscale access. Your uploaded purple-blue WROSECODE logo is included as transparent PNG.
-
-**Not a modified Rust repo:** this implementation launches your installed WROSECODE binary as a child process. The real Kali environment and Rust repository were **not** accessible for integration testing. The bundled mock binary exercises the command protocol; real compatibility must be validated on your machine. It is **not** safe to offer untrusted visitors general shell execution without genuine VM/container isolation and per-user provider credential separation.
-
-## Project files
-
-- `index.html` / `docs.html`: the original WROSECODE landing, browser-local CTF lab, CLI install/download center and documentation (preserved, with new links and logo)
-- `login.html`, `login.js`: accounts and optional social login
-- `console.html`, `console.css`, `console.js`: multi-panel chat/CTF/profiles/jobs/access-control interface
-- `web-setup.html`: complete Kali LAN, Tailscale, OAuth setup guide
-- `server/server.mjs`: authenticated API, SQLite sessions, OAuth, uploads, task queue, CLI bridge, SSE
-- `scripts/create-admin.mjs`: initial private owner account
-- `tests/api.test.mjs`: live mock-CLI HTTP integration test
-- `tests/browser_static.py`: desktop/mobile browser rendering and navigation tests (uses Playwright + Chromium)
-- `.env.example`: configuration starter
-
-## Quick start on Kali Linux
-
-Requires Node.js >=22.13 and your installed `wrosecode` CLI. Do not run this as root.
+## Secure quick start for a NEW local install
 
 ```bash
 cd WROSECODE-Web-Console
-node --version
-wrosecode --version
-wrosecode providers list
-cp .env.example .env
-# Edit .env to change BRIDGE_MODE=cli and set WROSECODE_BIN to an absolute CLI path.
-read -rp 'Admin email: ' ADMIN_EMAIL
-read -rsp 'Admin password (12+ chars): ' ADMIN_PASSWORD; echo
-export ADMIN_EMAIL ADMIN_PASSWORD
-node --env-file=.env scripts/create-admin.mjs
-unset ADMIN_EMAIL ADMIN_PASSWORD
-node --env-file=.env server/server.mjs
-```
-
-Open `http://127.0.0.1:8787/login.html`. **No `npm install` required**: backend uses Node 22 built-ins including `node:sqlite` (experimental in some Node 22 versions). `BRIDGE_MODE=disabled` is the safe default. For local fake integration, set `BRIDGE_MODE=mock` (simulated messages, no real AI). Real agent: `BRIDGE_MODE=cli` and `WROSECODE_BIN=/path/to/wrosecode`.
-
-Default: bind `127.0.0.1`, port `8787`, server URL `http://127.0.0.1:8787`, private account registration, one owner running commands. The web bridge creates per-user workspace directories but **this is not an OS sandbox**.
-
-### Same LAN (trusted/test environment only)
-
-Find your actual local IP (`hostname -I`). In `.env`:
-
-```dotenv
-HOST=0.0.0.0
-PORT=8787
-PUBLIC_BASE_URL=http://192.168.1.50:8787
-BRIDGE_MODE=cli
-```
-
-Replace `192.168.1.50` with the actual Kali host LAN IP. Restart the Node server. Open `http://KALI_LAN_IP:8787` from another device on that LAN (and restrict inbound firewall rules). **Plain HTTP carries passwords unencrypted.** Do not use this configuration on untrusted Wi-Fi or as an internet-facing deployment. Prefer a TLS reverse proxy or Tailscale HTTPS.
-
-### Different networks: private Tailscale Serve
-
-Install Tailscale on your Kali host and client devices and add them to the same permitted tailnet. Set `.env`:
-
-```dotenv
-HOST=127.0.0.1
-PORT=8787
-PUBLIC_BASE_URL=https://your-kali.your-tailnet.ts.net
-BRIDGE_MODE=cli
-```
-
-Then start the app and on Kali run:
-
-```bash
-sudo tailscale up
-node --env-file=.env server/server.mjs
-# in a second terminal
-tailscale serve --bg 8787
-tailscale serve status
-```
-
-Use the **actual** HTTPS hostname reported by Tailscale Serve in `PUBLIC_BASE_URL`. Restart the web server after changing it. `tailscale serve` remains private to authorized tailnet participants; do **not** use `tailscale funnel` for the execution bridge. Check [Tailscale Serve docs](https://tailscale.com/docs/reference/tailscale-cli/serve) if your local client syntax differs. Tailscale must support HTTPS certificates for Serve.
-
-### Google/GitHub login
-
-Register OAuth clients in the respective developer consoles and put these in `.env`:
-
-```dotenv
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-```
-
-Required callback URLs:
-
-```
-https://your-kali.your-tailnet.ts.net/api/oauth/google/callback
-https://your-kali.your-tailnet.ts.net/api/oauth/github/callback
-```
-
-Google's domain verification/consent requirements may reject a `*.ts.net` redirect; a domain you control with HTTPS may be necessary. Social login supports verified-email identification, OAuth state and Google's PKCE. OAuth credential issuance and real callback success were **not tested against live provider accounts**. When adding Google/GitHub to an existing email account, sign in with email/password first and use **Link Google login** / **Link GitHub login** in the AI providers tab. This avoids automatically merging unverified password sign-ups with OAuth accounts. Password registration does not verify ownership of the claimed email address: enable it only with owner review or add a real email-verification service for public signups. Do not expose `.env` to the internet.
-
-### Users, approvals, execution safety
-
-`SIGNUP_MODE=closed` is default. Set to `open` to allow new email/password accounts and verified Google/GitHub signups. New users appear as pending; an owner can approve them under **Access control**. The bridge intentionally lets only the **owner** execute CLI tasks by default, even after approval.
-
-`ALLOW_MEMBER_JOBS=1` plus `I_ACCEPT_SHARED_CLI_RISK=yes` disables that guard, but **never enable it for untrusted/public users**. This project does not enforce separate Linux users, containers, per-user CLI provider billing, filesystem isolation or network egress policy. Shared host credentials and privileged CLI tools could otherwise be abused. Build a sandboxed worker service before enabling publicly available arbitrary AI tasks.
-
-### CLI bridge arguments
-
-- Chat: `wrosecode --headless --events - --permission auto-safe --max-wall-time 300 [--provider ID] [--model ID] "request"`
-- CTF: `wrosecode ctf /absolute/path/to/uploaded/artifact --budget steps=40,seconds=300`
-- Providers: `wrosecode providers list` (redacted and bounded output)
-
-Execution: `spawn` with `shell:false`; owner-only by default; stdout/stderr redaction and capped logs, timeout with termination, job cancellation, modest bounded task queue. No arbitrary shell string is accepted as an HTTP endpoint. Those command flags were derived from the user-provided CLI documentation and must be checked against the installed build.
-
-CTF uploads: 16 MiB max, owner permission, explicit authorization checkbox on the UI, random server path, no archive extraction by the web server. The CLI may still inspect/execute challenge content: **run in an isolated sandbox for untrusted artifacts**. Regex-like flags emitted by the CLI are labeled **UNVERIFIED** and are never marked solved by this bridge without independent challenge-authority confirmation. A 0 exit code means completed execution, not a verified flag.
-
-### Cloudflare Pages
-
-Static landing/docs pages can be deployed to Cloudflare Pages; the Node server and native CLI cannot execute in a simple static Pages deployment. For the full working console host these files with the Node server on Kali or an isolated Linux server behind HTTPS, and ensure the browser uses the same-origin `/api` endpoints. Do not upload the `.env`, SQLite data or server state to Pages.
-
-## Testing and evidence
-
-```bash
+node --version           # Node >=22.13
+cp -n .env.example .env  # edit for your real host/ports; do not publish
+npm run check
 npm test
-python tests/browser_static.py  # requires Playwright + Chromium installed
+npm run build
+./scripts/create-admin.sh
+node --env-file=.env server/server.mjs
 ```
 
-At creation: `npm test` passed a mocked executable integration suite covering login, rejected unauthorized users, permission gating, artifact upload, path rejection, CLI event streaming, provider secret redaction, false-positive flags, and cross-origin mutation rejection. Desktop (1440px) and mobile (390px) browser static layout/nav tests passed. Tests of local Chromium **navigation to the live HTTP server** were blocked by the execution environment's browser administrator policy; this is not a claim of a successful live browser/E2E UI test. Actual Rust WROSECODE CLI, real Google/GitHub OAuth, Tailscale, Kali OS, hardened sandbox and public multi-user security were not tested and must be validated on the target host.
+Use `http://127.0.0.1:8787/login` for local sign-in. On an EXISTING Kali system with a `wrosecode-web.service` already running, **do not start a second instance on port 8787**: preserve your private `.env` and `data/`, merge the upgraded code, restart the service, and test `/api/health`.
 
-## Current limitations
+Your login database is in `data/`; **never copy production `.env`, `data/`, `~/.wrosecode/` or private Git history into a public ZIP**. This distributed ZIP intentionally excludes those items. The master API key encryption secret must also remain private.
 
-- A shared CLI installation means shared provider credentials; not a multi-tenant cloud SaaS.
-- Job events survive restarts in SQLite; running processes are marked interrupted on restart. Relaunching a task is manual; no process reconnection across restart.
-- The chat bridge uses headless one-shot prompts, not a full persistent interactive Rust TUI session; the CLI's own session architecture may be expanded later.
-- No verified flag submission or automated challenge-authority validation (unverified candidate reporting only).
-- OAuth setup and TLS require external accounts/domain configuration.
-- No true per-user container/VM sandbox, egress filtering, billing isolation, distributed scaling or professional security audit.
-- Full Rust CLI source-based integration and solve-rate benchmarks were not possible without the actual repo and Kali binary.
+## Remote access: private vs public
+
+| Scenario | Method | Notes |
+|---|---|---|
+| Same machine | `http://127.0.0.1:8787` | Server bound to loopback |
+| Your own devices, same Wi‑Fi or mobile data | **Tailscale Serve** with authenticated tailnet clients | Private, encrypted; Kali must be on |
+| Any unaffiliated browser user on internet | Public secure HTTPS Node backend + ingress/relay | **Not deployed by this ZIP**; Pages only hosts the static frontend |
+
+The Node app can remain bound to `127.0.0.1:8787` and Tailscale Serve route to it, for example `sudo tailscale serve --bg http://127.0.0.1:8787`. In `.env`, use the HTTPS Serve origin for **both** `PUBLIC_BASE_URL` and `FRONTEND_URL` while private-testing (e.g. the `https://<device>.<tailnet>.ts.net` URL Tailscale actually assigns). Sign in from a device that is a member of the same tailnet.
+
+Cloudflare Pages `wrosecode-web.pages.dev` **cannot talk to a private Tailscale Serve endpoint from arbitrary public visitors**. For public registration/login, deploy an internet-reachable authenticated backend, set build-time `WROSECODE_BACKEND_URL` in Pages to its real HTTPS origin, rebuild/redeploy and validate cookies and security controls. For Safari, prefer login and console on the **backend origin**. A functioning public relay requires deployment; this ZIP does not make remote access automatically work from any network without it.
+
+## Pair CLI for each user
+
+1. Sign in → **Connect CLI** → Generate pairing code (expires after 10 minutes).
+2. Install the actual `wrosecode` CLI and Node.js 22.13+ on your own device.
+3. Run from the extracted project directory as your normal OS user (not root):
+
+```bash
+node scripts/device-agent.mjs --backend https://YOUR-BACKEND --code YOUR-PAIR-CODE
+```
+
+The companion saves its token with private permissions and makes **outbound HTTPS** connections. Keep the agent running to accept tasks. `Connect CLI` shows devices when they report online. Remote tools require approval **on the local CLI device** and operate within a configured workspace, not unbounded shell access. This is **not** an OpenCode TUI or arbitrary remote desktop/PTY mirror.
+
+Leave these defaults intact for a shared website:
+
+```dotenv
+SIGNUP_MODE=open
+ENABLE_SOCIAL_LOGIN=0
+BRIDGE_MODE=disabled
+ALLOW_MEMBER_JOBS=0
+I_ACCEPT_SHARED_CLI_RISK=no
+```
+
+For direct AI provider profiles set `PROVIDER_ENCRYPTION_KEY` as described in `.env.example` and ensure HTTPS, SSRF-safe endpoint settings.
+
+## Verification
+
+```bash
+npm run check
+npm test
+npm run build
+curl -fsS http://127.0.0.1:8787/api/health
+```
+
+The automated test suite covers browser source contracts, flag parsing, mock authenticated CLI bridge, per-user pairing isolation, event streaming, sessions, security checks, lifecycle and optional legacy OAuth safety. Passing tests **does not guarantee real provider/API reachability, flag correctness, actual Kali binary compatibility, or real public internet routing**. Confirm these with the user's machine and hosting.
