@@ -1,6 +1,3 @@
-# Pretty URLs: serve pages at extensionless paths with 200 rewrites.
-# Exact-path rules are evaluated top-down, first match wins.
-/login /login.html 200
-/console /console.html 200
-/docs /docs.html 200
-/web-setup /web-setup.html 200
+# Cloudflare Pages automatically serves extensionless URLs from matching .html
+# files. Do not rewrite /docs back to /docs.html: Pages canonicalizes that
+# request to /docs, which creates a redirect loop.
